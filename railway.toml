@@ -1,9 +1,9 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm install && npm run build"
+buildCommand = "cd backend && npm install && npm run build"
 
 [deploy]
-startCommand = "npm run start:prod"
+startCommand = "cd backend && npx prisma generate && npm run start:prod"
 healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

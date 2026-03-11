@@ -279,6 +279,12 @@ a {
   gap: 18px;
 }
 
+.shell-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
 .shell-link {
   padding: 14px 16px;
   border-radius: var(--ds-radius-md);
@@ -723,18 +729,31 @@ a {
 }
 
 .product-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: space-between;
   width: 100%;
-  gap: 12px;
+  gap: 8px;
 }
 
 .product-actions .primary-button,
 .product-actions .ghost-button {
+  flex: 1;
   min-width: 0;
-  width: 100%;
+  display: flex;
+  align-items: center;
   justify-content: center;
+  padding: 12px 6px;
+  font-size: 0.82rem; /* Balanced, readable font size */
+  font-weight: 700;
+  line-height: 1.2;
+  border-radius: var(--ds-radius-md);
   text-align: center;
+  /* Allow text to wrap into two lines if it's too long, 
+     preventing it from overflowing horizontally */
+  white-space: normal; 
+  word-break: keep-all; 
 }
 
 .wide-button {

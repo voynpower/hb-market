@@ -46,9 +46,9 @@ export class FilesController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: () => {
+        destination: (_req: Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
           ensureUploadsDir();
-          return uploadsDir;
+          cb(null, uploadsDir);
         },
         filename: (_req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
           const ext = file.originalname.includes('.')
@@ -57,7 +57,7 @@ export class FilesController {
           cb(null, `${randomUUID()}${ext}`);
         },
       }),
-      limits: { fileSize: 5 * 1024 * 1024 },
+      limits: { fileSize: 10 * 1024 * 1024 }, // Increased to 10MB
       fileFilter: (_req, file, cb) => {
         if (!file.mimetype.startsWith('image/')) {
           return cb(new BadRequestException('Only image files are allowed'), false);

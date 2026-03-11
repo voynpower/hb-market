@@ -108,8 +108,9 @@ export const api = {
       token,
     });
   },
-  products() {
-    return requestJson<Product[]>('/products');
+  products(status?: string) {
+    const url = status ? `/products?status=${status}` : '/products';
+    return requestJson<Product[]>(url);
   },
   product(productId: string) {
     return requestJson<Product>(`/products/${productId}`);

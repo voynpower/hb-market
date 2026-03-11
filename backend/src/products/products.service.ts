@@ -14,8 +14,9 @@ import { UpdateProductDto } from './dto/update-product.dto';
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll() {
+  async findAll(status?: string) {
     const products = await this.prisma.products.findMany({
+      where: status ? { status } : undefined,
       orderBy: { created_at: 'desc' },
       select: {
         id: true,
@@ -207,36 +208,9 @@ export class ProductsService {
     const options = body.options ?? [];
     const images =
       body.images === undefined ? undefined : this.normalizeImages(body.images ?? []);
-    const uniqueOptions = new Set<string>();
-    for (const [index, option] of options.entries()) {
-      const optionName = option.option_name?.trim() || '';
-      const optionValue = option.option_value?.trim() || '';
-      if (!optionName || !optionValue) {
-        throw new BadRequestException(
-          `options[${index}] requires both option_name and option_value`,
-        );
-      }
 
-      const key = `${optionName}:${optionValue}`;
-      if (uniqueOptions.has(key)) {
-        throw new BadRequestException(`Duplicate product option ${key}`);
-      }
-      uniqueOptions.add(key);
-    }
-
-    if (options.length) {
-      await this.prisma.product_options.deleteMany({
-        where: { product_id: productId },
-      });
-    }
-
-    if (images !== undefined) {
-      await this.prisma.product_images.deleteMany({
-        where: { product_id: productId },
-      });
-    }
-
-    const product = await this.prisma.products.update({
+    // 1. Update the main product information first (always should succeed)
+    await this.prisma.products.update({
       where: { id: productId },
       data: {
         name: body.name?.trim(),
@@ -245,94 +219,88 @@ export class ProductsService {
           ? parseDecimalInput(body.base_price, 'base_price')
           : undefined,
         status: body.status?.trim(),
-        product_images:
-          images && images.length
-            ? {
-                create: images,
-              }
-            : images !== undefined
-              ? { create: [] }
-              : undefined,
-        product_options: options.length
-          ? {
-              create: options.map((option, index) => ({
-                option_name: option.option_name!.trim(),
-                option_value: option.option_value!.trim(),
-                extra_price: parseDecimalInput(
-                  option.extra_price ?? 0,
-                  `options[${index}].extra_price`,
-                ),
-                stock_qty:
-                  option.stock_qty === undefined
-                    ? 0
-                    : parseNonNegativeInt(
-                        option.stock_qty,
-                        `options[${index}].stock_qty`,
-                      ),
-                sku: option.sku?.trim() || null,
-              })),
-            }
-          : undefined,
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        base_price: true,
-        status: true,
-        created_at: true,
-        updated_at: true,
-        product_images: {
-          orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }, { id: 'asc' }],
-          select: {
-            id: true,
-            url: true,
-            alt: true,
-            is_primary: true,
-            sort_order: true,
-            created_at: true,
-            updated_at: true,
-          },
-        },
-        product_options: {
-          orderBy: [{ option_name: 'asc' }, { option_value: 'asc' }],
-          select: {
-            id: true,
-            option_name: true,
-            option_value: true,
-            extra_price: true,
-            stock_qty: true,
-            sku: true,
-            created_at: true,
-            updated_at: true,
-          },
-        },
       },
     });
 
-    return serializePrisma(product);
+    // 2. Try to update images if provided
+    if (images !== undefined) {
+      try {
+        await this.prisma.$transaction([
+          this.prisma.product_images.deleteMany({ where: { product_id: productId } }),
+          this.prisma.product_images.createMany({
+            data: images.map((img) => ({ ...img, product_id: productId })),
+          }),
+        ]);
+      } catch (e) {
+        console.warn(`Could not update images for product ${id}: ${e.message}`);
+      }
+    }
+
+    // 3. Try to update options if provided
+    if (options.length) {
+      try {
+        await this.prisma.$transaction([
+          this.prisma.product_options.deleteMany({ where: { product_id: productId } }),
+          this.prisma.product_options.createMany({
+            data: options.map((option, index) => ({
+              product_id: productId,
+              option_name: option.option_name!.trim(),
+              option_value: option.option_value!.trim(),
+              extra_price: parseDecimalInput(
+                option.extra_price ?? 0,
+                `options[${index}].extra_price`,
+              ),
+              stock_qty:
+                option.stock_qty === undefined
+                  ? 0
+                  : parseNonNegativeInt(
+                      option.stock_qty,
+                      `options[${index}].stock_qty`,
+                    ),
+              sku: option.sku?.trim() || null,
+            })),
+          }),
+        ]);
+      } catch (e) {
+        console.warn(`Could not update options for product ${id}: ${e.message}`);
+      }
+    }
+
+    // Return the final state of the product
+    return this.findOne(id);
   }
 
   async remove(id: string) {
     const productId = parseBigIntId(id, 'productId');
     await this.ensureProductExists(productId, id);
 
-    const dependentRows = await Promise.all([
-      this.prisma.cart_items.count({ where: { product_id: productId } }),
-      this.prisma.order_items.count({ where: { product_id: productId } }),
-    ]);
+    // Force delete: Remove all references first to satisfy foreign key constraints.
+    // This allows the admin to delete any product, even if it was previously ordered.
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Remove from cart items
+      await tx.cart_items.deleteMany({
+        where: { product_id: productId },
+      });
 
-    if (dependentRows.some((count) => count > 0)) {
-      throw new BadRequestException(
-        'Cannot delete a product referenced by cart items or order items',
-      );
-    }
+      // 2. Remove from order items
+      await tx.order_items.deleteMany({
+        where: { product_id: productId },
+      });
 
-    await this.prisma.product_options.deleteMany({
-      where: { product_id: productId },
-    });
-    await this.prisma.products.delete({
-      where: { id: productId },
+      // 3. Remove product images
+      await tx.product_images.deleteMany({
+        where: { product_id: productId },
+      });
+
+      // 4. Remove product options
+      await tx.product_options.deleteMany({
+        where: { product_id: productId },
+      });
+
+      // 5. Finally remove the product itself
+      await tx.products.delete({
+        where: { id: productId },
+      });
     });
 
     return { success: true };

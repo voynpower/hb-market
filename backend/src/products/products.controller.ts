@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -29,8 +30,8 @@ export class ProductsController {
   @ApiOperation({ summary: 'List products' })
   @ApiOkResponse({ description: 'Product list returned' })
   @Get()
-  findAll() {
-    return this.productsService.findAll();
+  findAll(@Query('status') status?: string) {
+    return this.productsService.findAll(status);
   }
 
   @ApiOperation({ summary: 'Get product detail' })

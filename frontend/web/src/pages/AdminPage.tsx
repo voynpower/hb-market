@@ -93,11 +93,19 @@ export function AdminPage() {
   function resetProductForm() {
     setEditingProductId(null);
     setProductForm(emptyProductForm);
+    setUploadPreview(null);
+    setNotice(null);
+    setError(null);
   }
 
   function startEditProduct(product: Product) {
     const firstOption = product.product_options[0];
     const primaryImage = product.product_images?.find((img) => img.is_primary) ?? product.product_images?.[0];
+    
+    // Clear notifications
+    setNotice(null);
+    setError(null);
+    
     setEditingProductId(product.id);
     setProductForm({
       name: product.name,
@@ -113,8 +121,9 @@ export function AdminPage() {
       sku: firstOption?.sku ?? '',
     });
     setUploadPreview(primaryImage ? resolveAssetUrl(primaryImage.url) : null);
-    setNotice(null);
-    setError(null);
+    
+    // Smooth scroll to the top where the form is
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function handleSaveProduct(event: React.FormEvent<HTMLFormElement>) {
@@ -126,52 +135,63 @@ export function AdminPage() {
     setError(null);
     setNotice(null);
 
-    const payload = {
-      name: productForm.name,
-      description: productForm.description,
-      base_price: productForm.base_price,
+    // Prepare payload carefully
+    const payload: any = {
+      name: productForm.name.trim(),
+      description: productForm.description.trim(),
+      base_price: productForm.base_price || '0.00',
       status: productForm.status,
-      images: productForm.image_url
-        ? [
-            {
-              url: productForm.image_url,
-              alt: productForm.image_alt || undefined,
-              is_primary: true,
-              sort_order: 0,
-            },
-          ]
-        : undefined,
-      options: productForm.option_name
-        ? [
-            {
-              option_name: productForm.option_name,
-              option_value: productForm.option_value,
-              extra_price: productForm.extra_price,
-              stock_qty: productForm.stock_qty,
-              sku: productForm.sku,
-            },
-          ]
-        : undefined,
     };
+
+    // Images array (overwrite or update)
+    if (productForm.image_url) {
+      payload.images = [
+        {
+          url: productForm.image_url,
+          alt: productForm.image_alt || undefined,
+          is_primary: true,
+          sort_order: 0,
+        },
+      ];
+    } else {
+      payload.images = []; // Explicitly clear images if none provided
+    }
+
+    // Options array
+    if (productForm.option_name && productForm.option_value) {
+      payload.options = [
+        {
+          option_name: productForm.option_name.trim(),
+          option_value: productForm.option_value.trim(),
+          extra_price: productForm.extra_price || '0.00',
+          stock_qty: productForm.stock_qty,
+          sku: productForm.sku?.trim() || undefined,
+        },
+      ];
+    }
 
     try {
       if (editingProductId) {
         await api.updateProduct(token, editingProductId, payload);
-        setNotice('Product updated');
+        setNotice('Product updated successfully');
       } else {
         await api.createProduct(token, payload);
-        setNotice('Product created');
+        setNotice('Product created successfully');
       }
 
       resetProductForm();
       await loadAdminData();
     } catch (requestError) {
+      console.error('Save failed:', requestError);
       setError(requestError instanceof Error ? requestError.message : 'Unable to save product');
     }
   }
 
   async function handleDeleteProduct(productId: string) {
-    if (!token) {
+    if (!token) return;
+    
+    // Simple confirmation
+    if (!window.confirm('Are you sure you want to delete this product?')) {
       return;
     }
 
@@ -179,12 +199,15 @@ export function AdminPage() {
       setError(null);
       setNotice(null);
       await api.deleteProduct(token, productId);
+      
       if (editingProductId === productId) {
         resetProductForm();
       }
-      setNotice(`Product ${productId} deleted`);
+      
+      setNotice('Product deleted successfully');
       await loadAdminData();
     } catch (requestError) {
+      console.error('Delete failed:', requestError);
       setError(requestError instanceof Error ? requestError.message : 'Unable to delete product');
     }
   }
@@ -282,10 +305,10 @@ export function AdminPage() {
                         const resolved = resolveAssetUrl(result.url);
                         setProductForm((current) => ({
                           ...current,
-                          image_url: resolved,
-                          image_alt: current.image_alt || file.name,
+                          image_url: result.url, // Store relative path in form state
+                          image_alt: '', // Clear alt text so filename doesn't show up
                         }));
-                        setUploadPreview(resolved);
+                        setUploadPreview(resolved); // Keep absolute path for preview <img> src
                         setNotice('Image uploaded');
                       } catch (uploadError) {
                         setError(uploadError instanceof Error ? uploadError.message : 'Upload failed');
@@ -301,7 +324,6 @@ export function AdminPage() {
               {uploadPreview ? (
                 <div className="product-thumb preview-thumb">
                   <img src={uploadPreview} alt={productForm.image_alt || 'Uploaded preview'} />
-                  <span className="thumb-pill">{productForm.image_alt || t('common.primaryImage')}</span>
                   <button
                     className="ghost-button"
                     type="button"
@@ -451,45 +473,60 @@ export function AdminPage() {
           </form>
 
           <div className="stack">
-            {products.map((product) => (
-              <article className="line-card" key={product.id}>
-                <div className="section-heading">
-                  <div>
-                    <p className="eyebrow">{product.status}</p>
-                    <h3>{product.name}</h3>
+            {products.map((product) => {
+              const primaryImage =
+                product.product_images?.find((img) => img.is_primary) ??
+                product.product_images?.[0];
+              return (
+                <article className="line-card" key={product.id}>
+                  <div className="section-heading">
+                    <div className="product-info-row">
+                      {primaryImage ? (
+                        <div className="product-thumb list-thumb">
+                          <img
+                            src={resolveAssetUrl(primaryImage.url)}
+                            alt={primaryImage.alt || product.name}
+                          />
+                        </div>
+                      ) : null}
+                      <div>
+                        <p className="eyebrow">{product.status}</p>
+                        <h3>{product.name}</h3>
+                      </div>
+                    </div>
+                    <strong>{formatCurrency(product.base_price)}</strong>
                   </div>
-                  <strong>{formatCurrency(product.base_price)}</strong>
-                </div>
-                <p className="muted">{product.description || t('admin.noDesc')}</p>
-                <div className="chip-row">
-                  {product.product_options.length ? (
-                    product.product_options.map((option) => (
-                      <span className="chip" key={option.id}>
-                        {option.option_name}: {option.option_value} · stock {option.stock_qty}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="chip">{t('admin.noVariants')}</span>
-                  )}
-                </div>
-                <div className="admin-actions">
-                  <button
-                    className="ghost-button"
-                    onClick={() => startEditProduct(product)}
-                    type="button"
-                  >
-                    {t('admin.editBtn')}
-                  </button>
-                  <button
-                    className="ghost-button danger-button"
-                    onClick={() => void handleDeleteProduct(product.id)}
-                    type="button"
-                  >
-                    {t('admin.deleteBtn')}
-                  </button>
-                </div>
-              </article>
-            ))}
+                  <p className="muted">{product.description || t('admin.noDesc')}</p>
+                  <div className="chip-row">
+                    {product.product_options.length ? (
+                      product.product_options.map((option) => (
+                        <span className="chip" key={option.id}>
+                          {option.option_name}: {option.option_value} · stock {option.stock_qty}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="chip">{t('admin.noVariants')}</span>
+                    )}
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      className="ghost-button"
+                      onClick={() => startEditProduct(product)}
+                      type="button"
+                    >
+                      {t('admin.editBtn')}
+                    </button>
+                    <button
+                      className="ghost-button danger-button"
+                      onClick={() => void handleDeleteProduct(product.id)}
+                      type="button"
+                    >
+                      {t('admin.deleteBtn')}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </div>
 

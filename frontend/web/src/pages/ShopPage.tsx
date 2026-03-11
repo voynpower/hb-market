@@ -19,7 +19,7 @@ export function ShopPage() {
 
   useEffect(() => {
     void api
-      .products()
+      .products('ON_SALE')
       .then((result) => {
         startTransition(() => setProducts(result));
       })

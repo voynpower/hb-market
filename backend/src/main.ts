@@ -35,20 +35,15 @@ async function bootstrap() {
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, swaggerDocument);
 
-  // Listen on the assigned PORT and use 0.0.0.0 for external access (Railway requirements)
+  // Railway injects a dynamic PORT environment variable.
+  // It is crucial to listen on this port and bind to 0.0.0.0
   const port = process.env.PORT || 3000;
-  console.log(`Attempting to start server on port ${port}...`);
+  console.log(`Starting server on port ${port}...`);
   
-  try {
-    await app.listen(port, '0.0.0.0');
-    console.log(`🚀 Application is running on: http://0.0.0.0:${port}`);
-    console.log(`Check health at: http://0.0.0.0:${port}/`);
-  } catch (error) {
-    console.error('❌ Server failed to start:', error);
-    process.exit(1);
-  }
+  await app.listen(port, '0.0.0.0');
+  console.log(`🚀 Server is live at http://0.0.0.0:${port}`);
 }
-bootstrap().catch((err) => {
-  console.error('💥 Fatal bootstrap error:', err);
+bootstrap().catch(err => {
+  console.error('Bootstrap error:', err);
   process.exit(1);
 });

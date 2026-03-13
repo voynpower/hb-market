@@ -6,7 +6,6 @@ import {
   Param,
   Patch,
   Post,
-  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -25,13 +24,13 @@ import { UpdateProductDto } from './dto/update-product.dto';
 @ApiTags('products')
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(private readonly productsService: ProductsService) { }
 
   @ApiOperation({ summary: 'List products' })
   @ApiOkResponse({ description: 'Product list returned' })
   @Get()
-  findAll(@Query('status') status?: string) {
-    return this.productsService.findAll(status);
+  findAll() {
+    return this.productsService.findAll();
   }
 
   @ApiOperation({ summary: 'Get product detail' })

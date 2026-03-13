@@ -39,6 +39,7 @@ async function bootstrap() {
   // It is crucial to listen on this port and bind to 0.0.0.0
   const port = process.env.PORT || 3000;
   console.log(`Starting server on port ${port}...`);
+  console.log(`Database connection attempt using configured DATABASE_URL...`);
   
   await app.listen(port, '0.0.0.0');
   console.log(`🚀 Server is live at http://0.0.0.0:${port}`);

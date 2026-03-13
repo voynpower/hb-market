@@ -8,4 +8,5 @@ cmds = ["npm install"]
 cmds = ["npx prisma generate", "npm run build"]
 
 [start]
+# Ensure prisma generate runs right before starting the app
 cmd = "npx prisma generate && npm run start:prod"

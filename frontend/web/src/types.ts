@@ -22,6 +22,14 @@ export type Address = {
   updated_at?: string;
 };
 
+export type Category = {
+  id: string;
+  name: string;
+  description?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type ProductOption = {
   id: string;
   option_name: string;
@@ -41,6 +49,7 @@ export type ProductImage = {
 
 export type Product = {
   id: string;
+  category_id?: string | null;
   name: string;
   description?: string | null;
   base_price: string;
@@ -49,6 +58,7 @@ export type Product = {
   updated_at: string;
   product_images: ProductImage[];
   product_options: ProductOption[];
+  categories?: Category | null;
 };
 
 export type CartItem = {

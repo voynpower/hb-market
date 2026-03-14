@@ -4,9 +4,10 @@ import { useAuth } from '../auth/AuthContext';
 import { api, resolveAssetUrl } from '../lib/api';
 import { formatCurrency, formatDate } from '../lib/format';
 import { useI18n } from '../i18n';
-import type { AdminDashboard, Order, Product } from '../types';
+import type { AdminDashboard, Category, Order, Product } from '../types';
 
 const emptyProductForm = {
+  category_id: '',
   name: '',
   description: '',
   base_price: '0.00',
@@ -26,6 +27,13 @@ export function AdminPage() {
   const [dashboard, setDashboard] = useState<AdminDashboard | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  
+  // Category management state
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryDesc, setNewCategoryDesc] = useState('');
+
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,14 +49,16 @@ export function AdminPage() {
     }
 
     try {
-      const [dashboardResult, ordersResult, productsResult] = await Promise.all([
+      const [dashboardResult, ordersResult, productsResult, categoriesResult] = await Promise.all([
         api.adminDashboard(token),
         api.allOrders(token),
         api.products(),
+        api.categories(),
       ]);
       setDashboard(dashboardResult);
       setOrders(ordersResult);
       setProducts(productsResult);
+      setCategories(categoriesResult);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to load admin data');
     }
@@ -108,12 +118,13 @@ export function AdminPage() {
     
     setEditingProductId(product.id);
     setProductForm({
+      category_id: product.category_id ?? '',
       name: product.name,
       description: product.description ?? '',
       base_price: product.base_price,
       status: product.status,
       image_url: primaryImage?.url ?? '',
-      image_alt: primaryImage?.alt ?? '',
+      image_alt: '',
       option_name: firstOption?.option_name ?? '',
       option_value: firstOption?.option_value ?? '',
       extra_price: firstOption?.extra_price ?? '0.00',
@@ -137,6 +148,7 @@ export function AdminPage() {
 
     // Prepare payload carefully
     const payload: any = {
+      category_id: productForm.category_id || undefined,
       name: productForm.name.trim(),
       description: productForm.description.trim(),
       base_price: productForm.base_price || '0.00',
@@ -228,6 +240,30 @@ export function AdminPage() {
     }
   }
 
+  async function handleCreateCategory() {
+    if (!token || !newCategoryName.trim()) return;
+    try {
+      await api.createCategory(token, { name: newCategoryName, description: newCategoryDesc });
+      setNewCategoryName('');
+      setNewCategoryDesc('');
+      await loadAdminData();
+      setNotice('Category created');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create category');
+    }
+  }
+
+  async function handleDeleteCategory(id: string) {
+    if (!token || !window.confirm('Delete this category?')) return;
+    try {
+      await api.deleteCategory(token, id);
+      await loadAdminData();
+      setNotice('Category deleted');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete category');
+    }
+  }
+
   return (
     <section className="page admin-page">
       <header className="page-header">
@@ -235,10 +271,54 @@ export function AdminPage() {
           <p className="eyebrow">{t('admin.eyebrow')}</p>
           <h2>{t('admin.title')}</h2>
         </div>
+        <button 
+          className="ghost-button" 
+          onClick={() => setShowCategoryManager(!showCategoryManager)}
+        >
+          {showCategoryManager ? 'Hide Categories' : 'Manage Categories'}
+        </button>
       </header>
 
       {notice ? <p className="callout success">{notice}</p> : null}
       {error ? <p className="callout error">{error}</p> : null}
+
+      {showCategoryManager && (
+        <article className="form-card category-manager" style={{ marginBottom: '24px' }}>
+          <h3>Categories</h3>
+          <div className="dual-grid" style={{ marginBottom: '16px' }}>
+            <label className="field-stack">
+              <span className="field-label">Category Name</span>
+              <input 
+                className="text-input" 
+                value={newCategoryName} 
+                onChange={e => setNewCategoryName(e.target.value)} 
+                placeholder="e.g. Ceramics"
+              />
+            </label>
+            <label className="field-stack">
+              <span className="field-label">Description (Optional)</span>
+              <input 
+                className="text-input" 
+                value={newCategoryDesc} 
+                onChange={e => setNewCategoryDesc(e.target.value)} 
+              />
+            </label>
+          </div>
+          <button className="primary-button" onClick={() => void handleCreateCategory()}>Add Category</button>
+          
+          <div className="chip-row" style={{ marginTop: '20px' }}>
+            {categories.map(cat => (
+              <span key={cat.id} className="pill">
+                {cat.name}
+                <button 
+                  onClick={() => void handleDeleteCategory(cat.id)}
+                  style={{ border: 'none', background: 'none', cursor: 'pointer', marginLeft: '8px', color: 'inherit' }}
+                >✕</button>
+              </span>
+            ))}
+          </div>
+        </article>
+      )}
 
       {dashboard ? (
         <div className="metrics-grid">
@@ -273,17 +353,34 @@ export function AdminPage() {
               ) : null}
             </div>
 
-            <label className="field-stack">
-              <span className="field-label">{t('admin.name')}</span>
-              <input
-                className="text-input"
-                value={productForm.name}
-                onChange={(event) =>
-                  setProductForm((current) => ({ ...current, name: event.target.value }))
-                }
-                required
-              />
-            </label>
+            <div className="dual-grid">
+              <label className="field-stack">
+                <span className="field-label">{t('admin.name')}</span>
+                <input
+                  className="text-input"
+                  value={productForm.name}
+                  onChange={(event) =>
+                    setProductForm((current) => ({ ...current, name: event.target.value }))
+                  }
+                  required
+                />
+              </label>
+              <label className="field-stack">
+                <span className="field-label">Category</span>
+                <select
+                  className="text-input"
+                  value={productForm.category_id}
+                  onChange={(event) =>
+                    setProductForm((current) => ({ ...current, category_id: event.target.value }))
+                  }
+                >
+                  <option value="">No Category</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
 
             <div className="dual-grid">
               <label className="field-stack">
@@ -490,7 +587,7 @@ export function AdminPage() {
                         </div>
                       ) : null}
                       <div>
-                        <p className="eyebrow">{product.status}</p>
+                        <p className="eyebrow">{product.status} {product.categories ? `· ${product.categories.name}` : ''}</p>
                         <h3>{product.name}</h3>
                       </div>
                     </div>

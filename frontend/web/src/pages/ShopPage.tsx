@@ -4,13 +4,15 @@ import { useAuth } from '../auth/AuthContext';
 import { api, resolveAssetUrl } from '../lib/api';
 import { formatCurrency } from '../lib/format';
 import { useI18n } from '../i18n';
-import type { Product } from '../types';
+import type { Category, Product } from '../types';
 
 export function ShopPage() {
   const { token, isAuthenticated, user } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [query, setQuery] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -18,15 +20,19 @@ export function ShopPage() {
   const deferredQuery = useDeferredValue(query);
 
   useEffect(() => {
+    void api.categories().then(setCategories).catch(console.error);
+  }, []);
+
+  useEffect(() => {
     void api
-      .products('ON_SALE')
+      .products('ON_SALE', selectedCategoryId || undefined)
       .then((result) => {
         startTransition(() => setProducts(result));
       })
       .catch((requestError: Error) => {
         setError(requestError.message);
       });
-  }, []);
+  }, [selectedCategoryId]);
 
   const filteredProducts = useMemo(() => {
     if (!deferredQuery.trim()) {
@@ -66,7 +72,7 @@ export function ShopPage() {
   }
 
   return (
-    <section className="page">
+    <section className="page shop-page">
       <header className="page-header">
         <div className="page-title-block">
           <p className="eyebrow">{t('shop.eyebrow')}</p>
@@ -91,6 +97,26 @@ export function ShopPage() {
         </div>
       </header>
 
+      <div className="line-card" style={{ padding: '16px', marginBottom: '24px' }}>
+        <div className="chip-row">
+          <button 
+            className={`pill ${!selectedCategoryId ? '' : 'outline'}`}
+            onClick={() => setSelectedCategoryId(null)}
+          >
+            {t('common.all') || 'All'}
+          </button>
+          {categories.map(cat => (
+            <button 
+              key={cat.id} 
+              className={`pill ${selectedCategoryId === cat.id ? '' : 'outline'}`}
+              onClick={() => setSelectedCategoryId(cat.id)}
+            >
+              {cat.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {feedback ? <p className="callout success">{feedback}</p> : null}
       {error ? <p className="callout error">{error}</p> : null}
 
@@ -112,24 +138,24 @@ export function ShopPage() {
 
           return (
             <article className="product-card" key={product.id}>
-          {primaryImage ? (
-            <div className="product-thumb">
-              <img
-                src={resolveAssetUrl(primaryImage.url)}
-                alt={primaryImage.alt || product.name}
-                loading="lazy"
-              />
-              <span className="thumb-pill">{primaryImage.alt || t('common.primaryImage')}</span>
-            </div>
-          ) : (
-            <div className="product-thumb">
-              <img src={fallback} alt={t('common.noImage')} loading="lazy" />
-              <span className="thumb-pill">{t('shop.noImage')}</span>
-            </div>
-          )}
+              {primaryImage ? (
+                <div className="product-thumb">
+                  <img
+                    src={resolveAssetUrl(primaryImage.url)}
+                    alt={primaryImage.alt || product.name}
+                    loading="lazy"
+                  />
+                </div>
+              ) : (
+                <div className="product-thumb">
+                  <img src={fallback} alt={t('common.noImage')} loading="lazy" />
+                </div>
+              )}
               <div className="product-head">
                 <div>
-                  <p className="product-kicker">{product.status}</p>
+                  <p className="product-kicker">
+                    {product.status} {product.categories ? `· ${product.categories.name}` : ''}
+                  </p>
                   <h3>{product.name}</h3>
                 </div>
                 <strong>{formatCurrency(product.base_price)}</strong>

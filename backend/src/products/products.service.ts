@@ -14,18 +14,26 @@ import { UpdateProductDto } from './dto/update-product.dto';
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(status?: string) {
+  async findAll(status?: string, category_id?: string) {
+    const where: Prisma.productsWhereInput = {};
+    if (status) where.status = status;
+    if (category_id) where.category_id = parseBigIntId(category_id, 'categoryId');
+
     const products = await this.prisma.products.findMany({
-      where: status ? { status } : undefined,
+      where,
       orderBy: { created_at: 'desc' },
       select: {
         id: true,
+        category_id: true,
         name: true,
         description: true,
         base_price: true,
         status: true,
         created_at: true,
         updated_at: true,
+        categories: {
+          select: { id: true, name: true }
+        },
         product_images: {
           orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }, { id: 'asc' }],
           select: {
@@ -59,12 +67,16 @@ export class ProductsService {
       where: { id: productId },
       select: {
         id: true,
+        category_id: true,
         name: true,
         description: true,
         base_price: true,
         status: true,
         created_at: true,
         updated_at: true,
+        categories: {
+          select: { id: true, name: true }
+        },
         product_images: {
           orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }, { id: 'asc' }],
           select: {
@@ -108,6 +120,7 @@ export class ProductsService {
     const basePrice = parseDecimalInput(body.base_price, 'base_price');
     const options = body.options ?? [];
     const images = this.normalizeImages(body.images ?? []);
+    const categoryId = body.category_id ? parseBigIntId(body.category_id, 'categoryId') : null;
 
     const uniqueOptions = new Set<string>();
     for (const [index, option] of options.entries()) {
@@ -136,6 +149,7 @@ export class ProductsService {
         description: body.description?.trim(),
         base_price: new Prisma.Decimal(basePrice),
         status: body.status?.trim() || 'ON_SALE',
+        category_id: categoryId,
         product_images: images.length
           ? {
               create: images,
@@ -164,12 +178,16 @@ export class ProductsService {
       },
       select: {
         id: true,
+        category_id: true,
         name: true,
         description: true,
         base_price: true,
         status: true,
         created_at: true,
         updated_at: true,
+        categories: {
+          select: { id: true, name: true }
+        },
         product_images: {
           orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }, { id: 'asc' }],
           select: {
@@ -208,6 +226,9 @@ export class ProductsService {
     const options = body.options ?? [];
     const images =
       body.images === undefined ? undefined : this.normalizeImages(body.images ?? []);
+    const categoryId = body.category_id !== undefined 
+      ? (body.category_id ? parseBigIntId(body.category_id, 'categoryId') : null)
+      : undefined;
 
     // 1. Update the main product information first (always should succeed)
     await this.prisma.products.update({
@@ -219,6 +240,7 @@ export class ProductsService {
           ? parseDecimalInput(body.base_price, 'base_price')
           : undefined,
         status: body.status?.trim(),
+        category_id: categoryId,
       },
     });
 

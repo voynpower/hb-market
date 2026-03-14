@@ -70,6 +70,11 @@ export class CreateProductOptionDto {
 }
 
 export class CreateProductDto {
+  @ApiPropertyOptional({ example: '1' })
+  @IsOptional()
+  @IsString()
+  category_id?: string;
+
   @ApiProperty({ example: 'Ceramic Mug' })
   @IsString()
   @MaxLength(200)

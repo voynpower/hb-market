@@ -5,6 +5,7 @@ import type {
   Cart,
   Order,
   Product,
+  Category,
   UserSummary,
 } from '../types';
 
@@ -108,8 +109,12 @@ export const api = {
       token,
     });
   },
-  products(status?: string) {
-    const url = status ? `/products?status=${status}` : '/products';
+  products(status?: string, categoryId?: string) {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (categoryId) params.append('category_id', categoryId);
+    
+    const url = params.toString() ? `/products?${params.toString()}` : '/products';
     return requestJson<Product[]>(url);
   },
   product(productId: string) {
@@ -118,6 +123,7 @@ export const api = {
   createProduct(
     token: string,
     payload: {
+      category_id?: string;
       name: string;
       description?: string;
       base_price: string;
@@ -147,6 +153,7 @@ export const api = {
     token: string,
     productId: string,
     payload: {
+      category_id?: string;
       name?: string;
       description?: string;
       base_price?: string;
@@ -301,5 +308,29 @@ export const api = {
   },
   adminDashboard(token: string) {
     return requestJson<AdminDashboard>('/admin/dashboard', { token });
+  },
+  // Category methods
+  categories() {
+    return requestJson<Category[]>('/categories');
+  },
+  createCategory(token: string, payload: { name: string; description?: string }) {
+    return requestJson<Category>('/categories', {
+      method: 'POST',
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  updateCategory(token: string, id: string, payload: { name?: string; description?: string }) {
+    return requestJson<Category>(`/categories/${id}`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteCategory(token: string, id: string) {
+    return requestJson<{ success: true }>(`/categories/${id}`, {
+      method: 'DELETE',
+      token,
+    });
   },
 };

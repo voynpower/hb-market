@@ -73,6 +73,11 @@ export class UpdateProductOptionDto {
 }
 
 export class UpdateProductDto {
+  @ApiPropertyOptional({ example: '1' })
+  @IsOptional()
+  @IsString()
+  category_id?: string;
+
   @ApiPropertyOptional({ example: 'Ceramic Mug' })
   @IsOptional()
   @IsString()

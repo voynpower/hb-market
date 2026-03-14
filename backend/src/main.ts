@@ -42,6 +42,26 @@ async function bootstrap() {
   console.log(`Starting server on port ${port}...`);
   console.log(`Database connection attempt using configured DATABASE_URL...`);
   
+  // Seed initial admin user if not exists
+  try {
+    const { AdminUsersService } = await import('./admin-users/admin-users.service');
+    const adminUsersService = app.get(AdminUsersService);
+    const existing = await adminUsersService.findAll();
+    if (existing.length === 0) {
+      console.log('Seed: Creating default admin user...');
+      const { hash } = await import('bcryptjs');
+      const passwordHash = await hash('12345678', 10);
+      await adminUsersService.create({
+        email: 'admin@hb.com',
+        password_hash: passwordHash,
+        name: 'Admin',
+      });
+      console.log('Seed: Default admin user created (admin@hb.com / 12345678)');
+    }
+  } catch (seedError) {
+    console.warn('Seed: Could not create default admin user:', seedError.message);
+  }
+
   await app.listen(port, '0.0.0.0');
   console.log(`🚀 Server is live at http://0.0.0.0:${port}`);
 }

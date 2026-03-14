@@ -1,4 +1,4 @@
-import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { startTransition, useDeferredValue, useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { api, resolveAssetUrl } from '../lib/api';
@@ -13,6 +13,7 @@ export function ShopPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState('latest');
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [query, setQuery] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -25,25 +26,14 @@ export function ShopPage() {
 
   useEffect(() => {
     void api
-      .products('ON_SALE', selectedCategoryId || undefined)
+      .products('ON_SALE', selectedCategoryId || undefined, deferredQuery || undefined, sortOrder)
       .then((result) => {
         startTransition(() => setProducts(result));
       })
       .catch((requestError: Error) => {
         setError(requestError.message);
       });
-  }, [selectedCategoryId]);
-
-  const filteredProducts = useMemo(() => {
-    if (!deferredQuery.trim()) {
-      return products;
-    }
-
-    const loweredQuery = deferredQuery.toLowerCase();
-    return products.filter((product) =>
-      `${product.name} ${product.description ?? ''}`.toLowerCase().includes(loweredQuery),
-    );
-  }, [deferredQuery, products]);
+  }, [selectedCategoryId, deferredQuery, sortOrder]);
 
   if (user?.subject_type === 'ADMIN') {
     return <Navigate replace to="/admin" />;
@@ -79,21 +69,33 @@ export function ShopPage() {
           <h2>{t('shop.title')}</h2>
           <p className="muted">{t('shop.subtitle')}</p>
           <div className="hero-stats">
-            <span className="meta-pill">{t('shop.visible', { count: filteredProducts.length })}</span>
-            <span className="meta-pill alt">{t('shop.total', { count: products.length })}</span>
+            <span className="meta-pill">{t('shop.total', { count: products.length })}</span>
           </div>
         </div>
-        <div className="search-panel">
-          <label className="field-label" htmlFor="product-search">
-            {t('shop.find')}
+        <div className="search-panel dual-grid">
+          <label className="field-stack">
+            <span className="field-label">{t('shop.find')}</span>
+            <input
+              id="product-search"
+              className="text-input"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t('shop.search.placeholder')}
+            />
           </label>
-          <input
-            id="product-search"
-            className="text-input"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('shop.search.placeholder')}
-          />
+          <label className="field-stack">
+            <span className="field-label">{t('shop.sortLabel') || 'Sort By'}</span>
+            <select 
+              className="text-input" 
+              value={sortOrder} 
+              onChange={e => setSortOrder(e.target.value)}
+            >
+              <option value="latest">Latest</option>
+              <option value="oldest">Oldest</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+            </select>
+          </label>
         </div>
       </header>
 
@@ -121,7 +123,7 @@ export function ShopPage() {
       {error ? <p className="callout error">{error}</p> : null}
 
       <div className="product-grid">
-        {filteredProducts.map((product) => {
+        {products.map((product) => {
           const selectedOption =
             product.product_options.find((option) => option.id === selectedOptions[product.id]) ??
             product.product_options[0] ??

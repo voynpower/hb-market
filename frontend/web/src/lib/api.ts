@@ -109,10 +109,12 @@ export const api = {
       token,
     });
   },
-  products(status?: string, categoryId?: string) {
+  products(status?: string, categoryId?: string, search?: string, sort?: string) {
     const params = new URLSearchParams();
     if (status) params.append('status', status);
     if (categoryId) params.append('category_id', categoryId);
+    if (search) params.append('search', search);
+    if (sort) params.append('sort', sort);
     
     const url = params.toString() ? `/products?${params.toString()}` : '/products';
     return requestJson<Product[]>(url);

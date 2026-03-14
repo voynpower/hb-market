@@ -33,8 +33,10 @@ export class ProductsController {
   findAll(
     @Query('status') status?: string,
     @Query('category_id') category_id?: string,
+    @Query('search') search?: string,
+    @Query('sort') sort?: string,
   ) {
-    return this.productsService.findAll(status, category_id);
+    return this.productsService.findAll(status, category_id, search, sort);
   }
 
   @ApiOperation({ summary: 'Get product detail' })

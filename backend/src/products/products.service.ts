@@ -14,14 +14,37 @@ import { UpdateProductDto } from './dto/update-product.dto';
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(status?: string, category_id?: string) {
+  async findAll(status?: string, category_id?: string, search?: string, sort?: string) {
     const where: Prisma.productsWhereInput = {};
+    
+    // Status filter
     if (status) where.status = status;
+    
+    // Category filter
     if (category_id) where.category_id = parseBigIntId(category_id, 'categoryId');
+    
+    // Search filter (Name or Description)
+    if (search?.trim()) {
+      where.OR = [
+        { name: { contains: search } },
+        { description: { contains: search } },
+      ];
+    }
+
+    // Sorting logic
+    let orderBy: Prisma.productsOrderByWithRelationInput = { created_at: 'desc' }; // Default: Latest
+    
+    if (sort === 'price_asc') {
+      orderBy = { base_price: 'asc' };
+    } else if (sort === 'price_desc') {
+      orderBy = { base_price: 'desc' };
+    } else if (sort === 'oldest') {
+      orderBy = { created_at: 'asc' };
+    }
 
     const products = await this.prisma.products.findMany({
       where,
-      orderBy: { created_at: 'desc' },
+      orderBy,
       select: {
         id: true,
         category_id: true,

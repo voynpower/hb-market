@@ -20,6 +20,30 @@ export class AdminUsersService {
     });
   }
 
+  async findAll() {
+    const users = await this.prisma.admin_users.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        status: true,
+      },
+    });
+    return serializePrisma(users);
+  }
+
+  async create(data: { email: string; password_hash: string; name: string }) {
+    const user = await this.prisma.admin_users.create({
+      data: {
+        ...data,
+        role: 'ADMIN',
+        status: 'ACTIVE',
+      },
+    });
+    return serializePrisma(user);
+  }
+
   async findOne(id: string) {
     const adminUserId = parseBigIntId(id, 'adminUserId');
     const adminUser = await this.prisma.admin_users.findUnique({

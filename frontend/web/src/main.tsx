@@ -4,7 +4,6 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './auth/AuthContext';
 import { I18nProvider } from './i18n';
-import { WishlistProvider } from './context/WishlistContext';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -12,9 +11,7 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <I18nProvider>
         <AuthProvider>
-          <WishlistProvider>
-            <App />
-          </WishlistProvider>
+          <App />
         </AuthProvider>
       </I18nProvider>
     </BrowserRouter>

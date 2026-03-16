@@ -10,7 +10,6 @@ import { OrdersPage } from './pages/OrdersPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { ShopPage } from './pages/ShopPage';
-import { WishlistPage } from './pages/WishlistPage';
 
 function App() {
   const { isReady } = useAuth();
@@ -34,7 +33,6 @@ function App() {
         <Route path="/" element={<ShopPage />} />
         <Route path="/products/:productId" element={<ProductDetailPage />} />
         <Route path="/cart" element={<CartPage />} />
-        <Route path="/wishlist" element={<WishlistPage />} />
         <Route path="/addresses" element={<AddressesPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/orders/:id" element={<OrderDetailPage />} />

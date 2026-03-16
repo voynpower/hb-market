@@ -29,10 +29,19 @@ export function AdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   
-  // Category management state
+  // Settings management state
   const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [showProfileManager, setShowProfileManager] = useState(false);
+  
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryDesc, setNewCategoryDesc] = useState('');
+  
+  const [profileForm, setProfileForm] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    current_password: '',
+    new_password: '',
+  });
 
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -264,6 +273,24 @@ export function AdminPage() {
     }
   }
 
+  async function handleUpdateProfile(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token) return;
+    try {
+      const payload = {
+        name: profileForm.name.trim(),
+        email: profileForm.email.trim(),
+        current_password: profileForm.current_password || undefined,
+        new_password: profileForm.new_password || undefined,
+      };
+      await api.updateAdminProfile(token, payload);
+      setNotice('Profile updated successfully. Please sign in again if you changed email or password.');
+      setProfileForm(prev => ({ ...prev, current_password: '', new_password: '' }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update profile');
+    }
+  }
+
   return (
     <section className="page admin-page">
       <header className="page-header">
@@ -271,12 +298,20 @@ export function AdminPage() {
           <p className="eyebrow">{t('admin.eyebrow')}</p>
           <h2>{t('admin.title')}</h2>
         </div>
-        <button 
-          className="ghost-button" 
-          onClick={() => setShowCategoryManager(!showCategoryManager)}
-        >
-          {showCategoryManager ? 'Hide Categories' : 'Manage Categories'}
-        </button>
+        <div className="header-actions">
+          <button 
+            className="ghost-button" 
+            onClick={() => { setShowCategoryManager(!showCategoryManager); setShowProfileManager(false); }}
+          >
+            {showCategoryManager ? 'Hide Categories' : 'Manage Categories'}
+          </button>
+          <button 
+            className="ghost-button" 
+            onClick={() => { setShowProfileManager(!showProfileManager); setShowCategoryManager(false); }}
+          >
+            {showProfileManager ? 'Hide Settings' : 'Account Settings'}
+          </button>
+        </div>
       </header>
 
       {notice ? <p className="callout success">{notice}</p> : null}
@@ -317,6 +352,55 @@ export function AdminPage() {
               </span>
             ))}
           </div>
+        </article>
+      )}
+
+      {showProfileManager && (
+        <article className="form-card profile-manager" style={{ marginBottom: '24px' }}>
+          <h3>Account Settings</h3>
+          <form onSubmit={(e) => void handleUpdateProfile(e)}>
+            <div className="dual-grid" style={{ marginBottom: '16px' }}>
+              <label className="field-stack">
+                <span className="field-label">Full Name</span>
+                <input 
+                  className="text-input" 
+                  value={profileForm.name} 
+                  onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))} 
+                />
+              </label>
+              <label className="field-stack">
+                <span className="field-label">Email Address</span>
+                <input 
+                  className="text-input" 
+                  type="email"
+                  value={profileForm.email} 
+                  onChange={e => setProfileForm(p => ({ ...p, email: e.target.value }))} 
+                />
+              </label>
+            </div>
+            <div className="dual-grid" style={{ marginBottom: '16px' }}>
+              <label className="field-stack">
+                <span className="field-label">Current Password (Required for changes)</span>
+                <input 
+                  className="text-input" 
+                  type="password"
+                  value={profileForm.current_password} 
+                  onChange={e => setProfileForm(p => ({ ...p, current_password: e.target.value }))} 
+                />
+              </label>
+              <label className="field-stack">
+                <span className="field-label">New Password (Optional)</span>
+                <input 
+                  className="text-input" 
+                  type="password"
+                  value={profileForm.new_password} 
+                  onChange={e => setProfileForm(p => ({ ...p, new_password: e.target.value }))} 
+                  placeholder="Min 8 characters"
+                />
+              </label>
+            </div>
+            <button className="primary-button" type="submit">Update Profile</button>
+          </form>
         </article>
       )}
 

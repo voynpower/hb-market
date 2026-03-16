@@ -311,6 +311,16 @@ export const api = {
   adminDashboard(token: string) {
     return requestJson<AdminDashboard>('/admin/dashboard', { token });
   },
+  updateAdminProfile(
+    token: string,
+    payload: { name?: string; email?: string; current_password?: string; new_password?: string },
+  ) {
+    return requestJson<UserSummary>('/admin/profile', {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
   // Category methods
   categories() {
     return requestJson<Category[]>('/categories');

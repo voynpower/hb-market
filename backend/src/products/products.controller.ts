@@ -64,6 +64,18 @@ export class ProductsController {
     return this.productsService.update(id, body);
   }
 
+  @ApiOperation({ summary: 'Update product option stock' })
+  @ApiBearerAuth()
+  @ApiOkResponse({ description: 'Stock updated' })
+  @UseGuards(JwtAuthGuard, AdminAccountGuard)
+  @Patch('options/:optionId/stock')
+  updateOptionStock(
+    @Param('optionId') optionId: string,
+    @Body() body: { stock_qty: number },
+  ) {
+    return this.productsService.updateOptionStock(optionId, body.stock_qty);
+  }
+
   @ApiOperation({ summary: 'Delete product' })
   @ApiBearerAuth()
   @ApiOkResponse({ description: 'Product deleted' })

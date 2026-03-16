@@ -142,6 +142,17 @@ export type AdminDashboard = {
     products: number;
     orders: number;
     paid_revenue: string;
+    low_stock_count: number;
   };
   recent_orders: Order[];
+  low_stock_items: Array<{
+    id: string;
+    option_name: string;
+    option_value: string;
+    stock_qty: number;
+    products: {
+      id: string;
+      name: string;
+    };
+  }>;
 };

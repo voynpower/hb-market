@@ -51,6 +51,10 @@ export function AdminPage() {
   const [productForm, setProductForm] = useState(emptyProductForm);
   const [orderQuery, setOrderQuery] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('ALL');
+  
+  // Quick Stock Edit State
+  const [editingStockOptionId, setEditingStockOptionId] = useState<string | null>(null);
+  const [quickStockValue, setQuickStockValue] = useState<number>(0);
 
   const loadAdminData = useCallback(async () => {
     if (!token) {
@@ -291,6 +295,18 @@ export function AdminPage() {
     }
   }
 
+  async function handleQuickStockUpdate(optionId: string, newQty: number) {
+    if (!token) return;
+    try {
+      await api.updateProductStock(token, optionId, newQty);
+      setEditingStockOptionId(null);
+      setNotice('Stock updated successfully');
+      await loadAdminData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update stock');
+    }
+  }
+
   return (
     <section className="page admin-page">
       <header className="page-header">
@@ -317,12 +333,26 @@ export function AdminPage() {
       {notice ? <p className="callout success">{notice}</p> : null}
       {error ? <p className="callout error">{error}</p> : null}
 
+      {/* Low Stock Alerts */}
+      {dashboard?.low_stock_items.length ? (
+        <article className="callout error" style={{ background: '#fff5f5', borderColor: '#feb2b2', marginBottom: '24px', display: 'block' }}>
+          <strong style={{ color: '#c53030' }}>⚠️ Low Stock Alert:</strong>
+          <div style={{ marginTop: '8px', fontSize: '0.9rem' }}>
+            {dashboard.low_stock_items.map(item => (
+              <span key={item.id} style={{ marginRight: '16px', display: 'inline-block' }}>
+                • {item.products.name} ({item.option_name}: {item.option_value}) - <strong>{item.stock_qty} left</strong>
+              </span>
+            ))}
+          </div>
+        </article>
+      ) : null}
+
       {showCategoryManager && (
         <article className="form-card category-manager" style={{ marginBottom: '24px' }}>
-          <h3>Categories</h3>
+          <h3>{t('nav.categories') || 'Categories'}</h3>
           <div className="dual-grid" style={{ marginBottom: '16px' }}>
             <label className="field-stack">
-              <span className="field-label">Category Name</span>
+              <span className="field-label">{t('admin.categoryName') || 'Category Name'}</span>
               <input 
                 className="text-input" 
                 value={newCategoryName} 
@@ -331,7 +361,7 @@ export function AdminPage() {
               />
             </label>
             <label className="field-stack">
-              <span className="field-label">Description (Optional)</span>
+              <span className="field-label">{t('admin.description')} ({t('common.optional') || 'Optional'})</span>
               <input 
                 className="text-input" 
                 value={newCategoryDesc} 
@@ -339,7 +369,7 @@ export function AdminPage() {
               />
             </label>
           </div>
-          <button className="primary-button" onClick={() => void handleCreateCategory()}>Add Category</button>
+          <button className="primary-button" onClick={() => void handleCreateCategory()}>{t('admin.addCategory') || 'Add Category'}</button>
           
           <div className="chip-row" style={{ marginTop: '20px' }}>
             {categories.map(cat => (
@@ -357,11 +387,11 @@ export function AdminPage() {
 
       {showProfileManager && (
         <article className="form-card profile-manager" style={{ marginBottom: '24px' }}>
-          <h3>Account Settings</h3>
+          <h3>{t('admin.accountSettings') || 'Account Settings'}</h3>
           <form onSubmit={(e) => void handleUpdateProfile(e)}>
             <div className="dual-grid" style={{ marginBottom: '16px' }}>
               <label className="field-stack">
-                <span className="field-label">Full Name</span>
+                <span className="field-label">{t('login.name')}</span>
                 <input 
                   className="text-input" 
                   value={profileForm.name} 
@@ -369,7 +399,7 @@ export function AdminPage() {
                 />
               </label>
               <label className="field-stack">
-                <span className="field-label">Email Address</span>
+                <span className="field-label">{t('login.email')}</span>
                 <input 
                   className="text-input" 
                   type="email"
@@ -380,7 +410,7 @@ export function AdminPage() {
             </div>
             <div className="dual-grid" style={{ marginBottom: '16px' }}>
               <label className="field-stack">
-                <span className="field-label">Current Password (Required for changes)</span>
+                <span className="field-label">{t('admin.currentPassword') || 'Current Password'}</span>
                 <input 
                   className="text-input" 
                   type="password"
@@ -389,7 +419,7 @@ export function AdminPage() {
                 />
               </label>
               <label className="field-stack">
-                <span className="field-label">New Password (Optional)</span>
+                <span className="field-label">{t('admin.newPassword') || 'New Password'}</span>
                 <input 
                   className="text-input" 
                   type="password"
@@ -399,7 +429,7 @@ export function AdminPage() {
                 />
               </label>
             </div>
-            <button className="primary-button" type="submit">Update Profile</button>
+            <button className="primary-button" type="submit">{t('admin.updateProfile') || 'Update Profile'}</button>
           </form>
         </article>
       )}
@@ -421,6 +451,10 @@ export function AdminPage() {
           <article className="line-card metric-card">
             <p className="eyebrow">{t('admin.metrics.revenue')}</p>
             <h3>{formatCurrency(dashboard.metrics.paid_revenue)}</h3>
+          </article>
+          <article className="line-card metric-card" style={{ borderColor: (dashboard.metrics.low_stock_count > 0) ? '#feb2b2' : 'inherit' }}>
+            <p className="eyebrow">Low Stock Items</p>
+            <h3 style={{ color: (dashboard.metrics.low_stock_count > 0) ? '#c53030' : 'inherit' }}>{dashboard.metrics.low_stock_count}</h3>
           </article>
         </div>
       ) : null}
@@ -450,7 +484,7 @@ export function AdminPage() {
                 />
               </label>
               <label className="field-stack">
-                <span className="field-label">Category</span>
+                <span className="field-label">{t('nav.categories') || 'Category'}</span>
                 <select
                   className="text-input"
                   value={productForm.category_id}
@@ -458,7 +492,7 @@ export function AdminPage() {
                     setProductForm((current) => ({ ...current, category_id: event.target.value }))
                   }
                 >
-                  <option value="">No Category</option>
+                  <option value="">{t('admin.noCategory') || 'No Category'}</option>
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
@@ -681,8 +715,34 @@ export function AdminPage() {
                   <div className="chip-row">
                     {product.product_options.length ? (
                       product.product_options.map((option) => (
-                        <span className="chip" key={option.id}>
-                          {option.option_name}: {option.option_value} · stock {option.stock_qty}
+                        <span className="chip" key={option.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                          {option.option_name}: {option.option_value} · stock 
+                          {editingStockOptionId === option.id ? (
+                            <input 
+                              type="number" 
+                              className="text-input" 
+                              style={{ width: '60px', padding: '2px 4px', fontSize: '0.8rem', height: 'auto' }}
+                              value={quickStockValue}
+                              onChange={e => setQuickStockValue(Number(e.target.value))}
+                              onBlur={() => void handleQuickStockUpdate(option.id, quickStockValue)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') void handleQuickStockUpdate(option.id, quickStockValue);
+                                if (e.key === 'Escape') setEditingStockOptionId(null);
+                              }}
+                              autoFocus
+                            />
+                          ) : (
+                            <strong 
+                              style={{ cursor: 'pointer', textDecoration: 'underline dotted', color: option.stock_qty <= 5 ? 'var(--primary-color)' : 'inherit' }}
+                              onClick={() => {
+                                setEditingStockOptionId(option.id);
+                                setQuickStockValue(option.stock_qty);
+                              }}
+                              title="Click to edit stock"
+                            >
+                              {option.stock_qty}
+                            </strong>
+                          )}
                         </span>
                       ))
                     ) : (

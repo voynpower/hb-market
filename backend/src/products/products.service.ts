@@ -351,6 +351,15 @@ export class ProductsService {
     return { success: true };
   }
 
+  async updateOptionStock(optionIdValue: string, stockQty: number) {
+    const optionId = parseBigIntId(optionIdValue, 'optionId');
+    const updated = await this.prisma.product_options.update({
+      where: { id: optionId },
+      data: { stock_qty: stockQty },
+    });
+    return serializePrisma(updated);
+  }
+
   private async ensureProductExists(productId: bigint, rawId: string) {
     const product = await this.prisma.products.findUnique({
       where: { id: productId },

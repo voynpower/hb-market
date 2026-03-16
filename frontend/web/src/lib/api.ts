@@ -5,6 +5,7 @@ import type {
   Cart,
   Order,
   Product,
+  ProductOption,
   Category,
   UserSummary,
 } from '../types';
@@ -185,6 +186,13 @@ export const api = {
     return requestJson<{ success: true }>(`/products/${productId}`, {
       method: 'DELETE',
       token,
+    });
+  },
+  updateProductStock(token: string, optionId: string, stockQty: number) {
+    return requestJson<ProductOption>(`/products/options/${optionId}/stock`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify({ stock_qty: stockQty }),
     });
   },
   uploadImage(token: string, file: File) {

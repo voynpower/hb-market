@@ -15,12 +15,22 @@ const emptyAddressForm = {
 };
 
 export function AddressesPage() {
-  const { token, isAuthenticated, user } = useAuth();
+  const { token, isAuthenticated, user, logout } = useAuth();
   const { t } = useI18n();
   const [addresses, setAddresses] = useState<Address[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [showForm, setShowProfileManager] = useState(false);
-  const [form, setForm] = useState(emptyAddressForm);
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [addressForm, setAddressAddressForm] = useState(emptyAddressForm);
+  
+  // Profile form state
+  const [profileForm, setProfileForm] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    current_password: '',
+    new_password: '',
+  });
+
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,9 +57,32 @@ export function AddressesPage() {
     return <Navigate replace to="/login" />;
   }
 
-  function startEdit(address: Address) {
-    setEditingId(address.id);
-    setForm({
+  // --- Profile Logic ---
+  async function handleUpdateProfile(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token) return;
+    try {
+      setError(null);
+      setNotice(null);
+      const payload = {
+        name: profileForm.name.trim(),
+        email: profileForm.email.trim(),
+        phone: profileForm.phone.trim(),
+        current_password: profileForm.current_password || undefined,
+        new_password: profileForm.new_password || undefined,
+      };
+      await api.updateProfile(token, payload);
+      setNotice('Profile updated successfully. If you changed your email or password, please sign in again.');
+      setProfileForm(prev => ({ ...prev, current_password: '', new_password: '' }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update profile');
+    }
+  }
+
+  // --- Address Logic ---
+  function startEditAddress(address: Address) {
+    setEditingAddressId(address.id);
+    setAddressAddressForm({
       recipient_name: address.recipient_name,
       recipient_phone: address.recipient_phone,
       zip_code: address.zip_code,
@@ -57,38 +90,40 @@ export function AddressesPage() {
       address2: address.address2 || '',
       is_default: address.is_default,
     });
-    setShowProfileManager(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setShowAddressForm(true);
+    // Smooth scroll to the address form
+    const element = document.getElementById('address-form-section');
+    element?.scrollIntoView({ behavior: 'smooth' });
   }
 
-  function cancelEdit() {
-    setEditingId(null);
-    setForm(emptyAddressForm);
-    setShowProfileManager(false);
+  function cancelAddressEdit() {
+    setEditingAddressId(null);
+    setAddressAddressForm(emptyAddressForm);
+    setShowAddressForm(false);
     setError(null);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleAddressSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
 
     try {
       setError(null);
-      if (editingId) {
-        await api.updateAddress(token, editingId, form);
+      if (editingAddressId) {
+        await api.updateAddress(token, editingAddressId, addressForm);
         setNotice('Address updated successfully');
       } else {
-        await api.createAddress(token, form);
+        await api.createAddress(token, addressForm);
         setNotice('Address added successfully');
       }
-      cancelEdit();
+      cancelAddressEdit();
       await loadAddresses();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save address');
     }
   }
 
-  async function handleDelete(id: string) {
+  async function handleAddressDelete(id: string) {
     if (!token || !window.confirm('Are you sure you want to delete this address?')) return;
     try {
       await api.deleteAddress(token, id);
@@ -99,7 +134,7 @@ export function AddressesPage() {
     }
   }
 
-  async function setAsDefault(id: string) {
+  async function setAddressAsDefault(id: string) {
     if (!token) return;
     try {
       await api.updateAddress(token, id, { is_default: true });
@@ -114,40 +149,116 @@ export function AddressesPage() {
     <section className="page addresses-page">
       <header className="page-header" style={{ background: 'transparent', border: 'none', boxShadow: 'none', paddingLeft: 0, marginBottom: '32px' }}>
         <div className="page-title-block">
-          <p className="product-kicker">{t('address.eyebrow') || 'Shipping'}</p>
-          <h2 style={{ fontSize: '2.5rem', fontWeight: 800 }}>{t('nav.addresses')}</h2>
+          <p className="product-kicker">{t('pill.customer') || 'Account'}</p>
+          <h2 style={{ fontSize: '2.5rem', fontWeight: 800 }}>{t('nav.account') || 'My Profile'}</h2>
         </div>
-        <button 
-          className="primary-button" 
-          onClick={() => { if(showForm) cancelEdit(); else setShowProfileManager(true); }}
-        >
-          {showForm ? 'Cancel' : '+ Add New Address'}
-        </button>
+        <button className="ghost-button danger-button" onClick={logout}>{t('footer.signout')}</button>
       </header>
 
       {notice && <p className="callout success">{notice}</p>}
       {error && <p className="callout error">{error}</p>}
 
-      {showForm && (
-        <article className="form-card" style={{ marginBottom: '48px', padding: '32px' }}>
-          <h3>{editingId ? 'Edit Address' : 'New Delivery Address'}</h3>
-          <form onSubmit={(e) => void handleSubmit(e)} style={{ marginTop: '24px' }}>
-            <div className="dual-grid" style={{ marginBottom: '20px' }}>
+      {/* --- Profile Section --- */}
+      <article className="form-card" style={{ marginBottom: '48px', padding: '32px' }}>
+        <h3 style={{ marginBottom: '24px' }}>{t('user.profile.settings')}</h3>
+        <form onSubmit={(e) => void handleUpdateProfile(e)}>
+          <div className="dual-grid" style={{ marginBottom: '20px' }}>
+            <label className="field-stack">
+              <span className="field-label">{t('login.name')}</span>
+              <input 
+                className="text-input" 
+                value={profileForm.name} 
+                onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))}
+                required
+              />
+            </label>
+            <label className="field-stack">
+              <span className="field-label">{t('login.phone')}</span>
+              <input 
+                className="text-input" 
+                value={profileForm.phone} 
+                onChange={e => setProfileForm(p => ({ ...p, phone: e.target.value }))}
+              />
+            </label>
+          </div>
+          <div className="dual-grid" style={{ marginBottom: '20px' }}>
+            <label className="field-stack">
+              <span className="field-label">{t('login.email')}</span>
+              <input 
+                className="text-input" 
+                type="email"
+                value={profileForm.email} 
+                onChange={e => setProfileForm(p => ({ ...p, email: e.target.value }))}
+                required
+              />
+            </label>
+          </div>
+          
+          <div style={{ background: 'rgba(0,0,0,0.02)', padding: '24px', borderRadius: '12px', marginTop: '32px' }}>
+            <h4 style={{ marginBottom: '16px' }}>{t('user.profile.changePassword')}</h4>
+            <div className="dual-grid" style={{ marginBottom: '16px' }}>
               <label className="field-stack">
-                <span className="field-label">Recipient Name</span>
+                <span className="field-label">{t('user.profile.currentPassword')}</span>
                 <input 
                   className="text-input" 
-                  value={form.recipient_name} 
-                  onChange={e => setForm(f => ({ ...f, recipient_name: e.target.value }))}
+                  type="password"
+                  value={profileForm.current_password} 
+                  onChange={e => setProfileForm(p => ({ ...p, current_password: e.target.value }))} 
+                  placeholder={t('user.profile.passwordRequired')}
+                />
+              </label>
+              <label className="field-stack">
+                <span className="field-label">{t('user.profile.newPassword')}</span>
+                <input 
+                  className="text-input" 
+                  type="password"
+                  value={profileForm.new_password} 
+                  onChange={e => setProfileForm(p => ({ ...p, new_password: e.target.value }))} 
+                  placeholder="Min 8 characters"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div style={{ marginTop: '32px' }}>
+            <button className="primary-button" type="submit">{t('user.profile.update')}</button>
+          </div>
+        </form>
+      </article>
+
+      <hr style={{ margin: '64px 0', border: 'none', borderTop: '1px solid rgba(0,0,0,0.05)' }} />
+
+      {/* --- Address Section --- */}
+      <div id="address-section" style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{t('nav.addresses')}</h3>
+        <button 
+          className="ghost-button" 
+          onClick={() => { if(showAddressForm) cancelAddressEdit(); else setShowAddressForm(true); }}
+        >
+          {showAddressForm ? t('addr.cancel') : `+ ${t('addr.add')}`}
+        </button>
+      </div>
+
+      {showAddressForm && (
+        <article id="address-form-section" className="form-card" style={{ marginBottom: '48px', padding: '32px', border: '1px solid var(--primary-color)' }}>
+          <h3>{editingAddressId ? t('addr.edit') : t('addr.add')}</h3>
+          <form onSubmit={(e) => void handleAddressSubmit(e)} style={{ marginTop: '24px' }}>
+            <div className="dual-grid" style={{ marginBottom: '20px' }}>
+              <label className="field-stack">
+                <span className="field-label">{t('addr.recipient')}</span>
+                <input 
+                  className="text-input" 
+                  value={addressForm.recipient_name} 
+                  onChange={e => setAddressAddressForm(f => ({ ...f, recipient_name: e.target.value }))}
                   required
                 />
               </label>
               <label className="field-stack">
-                <span className="field-label">Phone Number</span>
+                <span className="field-label">{t('addr.recipientPhone')}</span>
                 <input 
                   className="text-input" 
-                  value={form.recipient_phone} 
-                  onChange={e => setForm(f => ({ ...f, recipient_phone: e.target.value }))}
+                  value={addressForm.recipient_phone} 
+                  onChange={e => setAddressAddressForm(f => ({ ...f, recipient_phone: e.target.value }))}
                   required
                 />
               </label>
@@ -155,29 +266,29 @@ export function AddressesPage() {
 
             <div className="triple-grid" style={{ marginBottom: '20px', gridTemplateColumns: '1fr 2fr 2fr' }}>
               <label className="field-stack">
-                <span className="field-label">Zip Code</span>
+                <span className="field-label">{t('addr.zip')}</span>
                 <input 
                   className="text-input" 
-                  value={form.zip_code} 
-                  onChange={e => setForm(f => ({ ...f, zip_code: e.target.value }))}
+                  value={addressForm.zip_code} 
+                  onChange={e => setAddressAddressForm(f => ({ ...f, zip_code: e.target.value }))}
                   required
                 />
               </label>
               <label className="field-stack">
-                <span className="field-label">Address Line 1</span>
+                <span className="field-label">{t('addr.address1')}</span>
                 <input 
                   className="text-input" 
-                  value={form.address1} 
-                  onChange={e => setForm(f => ({ ...f, address1: e.target.value }))}
+                  value={addressForm.address1} 
+                  onChange={e => setAddressAddressForm(f => ({ ...f, address1: e.target.value }))}
                   required
                 />
               </label>
               <label className="field-stack">
-                <span className="field-label">Address Line 2 (Optional)</span>
+                <span className="field-label">{t('addr.address2')}</span>
                 <input 
                   className="text-input" 
-                  value={form.address2} 
-                  onChange={e => setForm(f => ({ ...f, address2: e.target.value }))}
+                  value={addressForm.address2} 
+                  onChange={e => setAddressAddressForm(f => ({ ...f, address2: e.target.value }))}
                 />
               </label>
             </div>
@@ -186,18 +297,18 @@ export function AddressesPage() {
               <input 
                 type="checkbox" 
                 id="is_default"
-                checked={form.is_default} 
-                onChange={e => setForm(f => ({ ...f, is_default: e.target.checked }))}
+                checked={addressForm.is_default} 
+                onChange={e => setAddressAddressForm(f => ({ ...f, is_default: e.target.checked }))}
                 style={{ width: '20px', height: '20px' }}
               />
-              <label htmlFor="is_default" style={{ fontWeight: 600, cursor: 'pointer' }}>Set as default shipping address</label>
+              <label htmlFor="is_default" style={{ fontWeight: 600, cursor: 'pointer' }}>{t('addr.default')}</label>
             </div>
 
             <div className="form-actions">
               <button className="primary-button" type="submit">
-                {editingId ? 'Update Address' : 'Save Address'}
+                {editingAddressId ? t('addr.save') : t('addr.create')}
               </button>
-              <button className="ghost-button" type="button" onClick={cancelEdit}>Cancel</button>
+              <button className="ghost-button" type="button" onClick={cancelAddressEdit}>{t('addr.cancel')}</button>
             </div>
           </form>
         </article>
@@ -231,18 +342,18 @@ export function AddressesPage() {
             </div>
 
             <div className="admin-actions" style={{ marginTop: '24px', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '20px' }}>
-              <button className="ghost-button" style={{ padding: '8px 16px', fontSize: '0.85rem' }} onClick={() => startEdit(addr)}>Edit</button>
+              <button className="ghost-button" style={{ padding: '8px 16px', fontSize: '0.85rem' }} onClick={() => startEditAddress(addr)}>{t('addr.edit')}</button>
               {!addr.is_default && (
-                <button className="ghost-button" style={{ padding: '8px 16px', fontSize: '0.85rem' }} onClick={() => void setAsDefault(addr.id)}>Set Default</button>
+                <button className="ghost-button" style={{ padding: '8px 16px', fontSize: '0.85rem' }} onClick={() => void setAddressAsDefault(addr.id)}>{t('addr.default')}</button>
               )}
-              <button className="ghost-button danger-button" style={{ padding: '8px 16px', fontSize: '0.85rem' }} onClick={() => void handleDelete(addr.id)}>Delete</button>
+              <button className="ghost-button danger-button" style={{ padding: '8px 16px', fontSize: '0.85rem' }} onClick={() => void handleAddressDelete(addr.id)}>{t('addr.delete')}</button>
             </div>
           </article>
         ))}
 
-        {addresses.length === 0 && !showForm && (
+        {addresses.length === 0 && !showAddressForm && (
           <div className="empty-card" style={{ gridColumn: '1 / -1', padding: '64px', textAlign: 'center' }}>
-            <p className="muted">No saved addresses. Add one to speed up your checkout!</p>
+            <p className="muted">{t('addr.none')}</p>
           </div>
         )}
       </div>

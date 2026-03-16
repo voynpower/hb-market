@@ -4,14 +4,66 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { hash } from 'bcryptjs';
+import { hash, compare } from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { parseBigIntId, serializePrisma } from '../common/prisma.utils';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async updateProfile(id: string, body: UpdateUserProfileDto) {
+    const userId = parseBigIntId(id, 'userId');
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User ${id} not found`);
+    }
+
+    const data: any = {};
+    if (body.name) data.name = body.name.trim();
+    if (body.phone) data.phone = body.phone.trim();
+
+    if (body.email && body.email.trim() !== user.email) {
+      const existing = await this.prisma.users.findUnique({
+        where: { email: body.email.trim() },
+      });
+      if (existing) {
+        throw new ConflictException('Email already in use');
+      }
+      data.email = body.email.trim();
+    }
+
+    if (body.new_password) {
+      if (!body.current_password) {
+        throw new BadRequestException('Current password required to set new password');
+      }
+      const isMatch = await compare(body.current_password, user.password_hash);
+      if (!isMatch) {
+        throw new BadRequestException('Current password does not match');
+      }
+      data.password_hash = await hash(body.new_password, 10);
+    }
+
+    const updated = await this.prisma.users.update({
+      where: { id: userId },
+      data,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        role: true,
+        status: true,
+      },
+    });
+
+    return serializePrisma(updated);
+  }
 
   async findAll() {
     const users = await this.prisma.users.findMany({

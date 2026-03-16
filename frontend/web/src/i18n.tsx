@@ -179,6 +179,14 @@ const translations: Record<Lang, Dict> = {
     'orders.none': 'No orders yet.',
     'orders.noticeCancelled': 'Order {id} cancelled',
     'orders.error': 'Unable to cancel order',
+
+    // user profile
+    'user.profile.settings': 'Profile Settings',
+    'user.profile.changePassword': 'Change Password',
+    'user.profile.update': 'Update Profile',
+    'user.profile.currentPassword': 'Current Password',
+    'user.profile.newPassword': 'New Password',
+    'user.profile.passwordRequired': 'Required for changes',
   },
   ko: {
     'brand.subtitle.storefront': '스토어프론트',
@@ -339,6 +347,13 @@ const translations: Record<Lang, Dict> = {
     'orders.none': '아직 주문이 없습니다.',
     'orders.noticeCancelled': '주문 {id} 를 취소했습니다',
     'orders.error': '주문을 취소할 수 없습니다',
+
+    'user.profile.settings': '내 정보 설정',
+    'user.profile.changePassword': '비밀번호 변경',
+    'user.profile.update': '정보 수정',
+    'user.profile.currentPassword': '현재 비밀번호',
+    'user.profile.newPassword': '새 비밀번호',
+    'user.profile.passwordRequired': '변경 시 필수 입력',
   },
   uz: {
     'brand.subtitle.storefront': 'Do‘kon',
@@ -499,6 +514,13 @@ const translations: Record<Lang, Dict> = {
     'orders.none': 'Hozircha buyurtma yo‘q.',
     'orders.noticeCancelled': 'Buyurtma {id} bekor qilindi',
     'orders.error': 'Buyurtmani bekor qilib bo‘lmadi',
+
+    'user.profile.settings': 'Profil sozlamalari',
+    'user.profile.changePassword': 'Parolni o‘zgartirish',
+    'user.profile.update': 'Profilni yangilash',
+    'user.profile.currentPassword': 'Joriy parol',
+    'user.profile.newPassword': 'Yangi parol',
+    'user.profile.passwordRequired': 'O‘zgartirish uchun talab qilinadi',
   },
   ru: {
     'brand.subtitle.storefront': 'Магазин',
@@ -659,6 +681,13 @@ const translations: Record<Lang, Dict> = {
     'orders.none': 'Заказов пока нет.',
     'orders.noticeCancelled': 'Заказ {id} отменён',
     'orders.error': 'Не удалось отменить заказ',
+
+    'user.profile.settings': 'Настройки профиля',
+    'user.profile.changePassword': 'Изменить пароль',
+    'user.profile.update': 'Обновить профиль',
+    'user.profile.currentPassword': 'Текущий пароль',
+    'user.profile.newPassword': 'Новый пароль',
+    'user.profile.passwordRequired': 'Обязательно для изменений',
   },
 };
 

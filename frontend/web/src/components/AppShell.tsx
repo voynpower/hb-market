@@ -255,19 +255,6 @@ export function AppShell() {
       <main className="shell-main">
         <header className="shell-topbar" aria-label="Top bar">
           <div className="shell-topbar-title">HB Market</div>
-          <div className="shell-topbar-actions">
-            <select
-              aria-label={t('lang.label')}
-              className="text-input shell-topbar-lang"
-              value={lang}
-              onChange={(event) => setLang(event.target.value as typeof lang)}
-            >
-              <option value="ko">🇰🇷 KO</option>
-              <option value="uz">🇺🇿 UZ</option>
-              <option value="ru">🇷🇺 RU</option>
-              <option value="en">🇺🇸 EN</option>
-            </select>
-          </div>
         </header>
         <div className="shell-stage">
           <Outlet />

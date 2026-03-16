@@ -110,6 +110,16 @@ export const api = {
       token,
     });
   },
+  updateProfile(
+    token: string,
+    payload: { name?: string; email?: string; phone?: string; current_password?: string; new_password?: string },
+  ) {
+    return requestJson<UserSummary>('/users/me', {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify(payload),
+    });
+  },
   products(status?: string, categoryId?: string, search?: string, sort?: string) {
     const params = new URLSearchParams();
     if (status) params.append('status', status);

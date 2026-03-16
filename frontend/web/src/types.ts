@@ -103,12 +103,16 @@ export type Shipment = {
 
 export type OrderItem = {
   id: string;
+  product_id: string;
   product_name: string;
   option_name?: string | null;
   option_value?: string | null;
   quantity: number;
   unit_price: string;
   total_price: string;
+  products?: {
+    product_images: Array<{ url: string; alt?: string | null }>;
+  };
 };
 
 export type Order = {

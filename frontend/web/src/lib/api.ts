@@ -238,6 +238,9 @@ export const api = {
   myOrders(token: string) {
     return requestJson<Order[]>('/orders/me', { token });
   },
+  order(token: string, orderId: string) {
+    return requestJson<Order>(`/orders/${orderId}`, { token });
+  },
   cancelOrder(token: string, orderId: string) {
     return requestJson<Order>(`/orders/${orderId}/cancel`, {
       method: 'PATCH',

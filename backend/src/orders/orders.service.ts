@@ -203,6 +203,15 @@ export class OrdersService {
             quantity: true,
             unit_price: true,
             total_price: true,
+            products: {
+              select: {
+                product_images: {
+                  where: { is_primary: true },
+                  take: 1,
+                  select: { url: true, alt: true },
+                },
+              },
+            },
           },
         },
         payments: true,

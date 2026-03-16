@@ -7,6 +7,7 @@ import { AddressesPage } from './pages/AddressesPage';
 import { CartPage } from './pages/CartPage';
 import { LoginPage } from './pages/LoginPage';
 import { OrdersPage } from './pages/OrdersPage';
+import { OrderDetailPage } from './pages/OrderDetailPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { ShopPage } from './pages/ShopPage';
 
@@ -34,6 +35,7 @@ function App() {
         <Route path="/cart" element={<CartPage />} />
         <Route path="/addresses" element={<AddressesPage />} />
         <Route path="/orders" element={<OrdersPage />} />
+        <Route path="/orders/:id" element={<OrderDetailPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={<Navigate replace to="/" />} />
       </Route>

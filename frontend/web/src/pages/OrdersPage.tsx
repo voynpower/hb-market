@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../lib/api';
 import { formatCurrency, formatDate } from '../lib/format';
@@ -92,8 +92,11 @@ export function OrdersPage() {
                 </span>
               ))}
             </div>
-            {order.order_status !== 'CANCELLED' && order.delivery_status === 'READY' ? (
-              <div className="admin-actions">
+            <div className="admin-actions">
+              <Link className="ghost-button" to={`/orders/${order.id}`}>
+                {t('order.viewDetails') || 'View Details'}
+              </Link>
+              {order.order_status !== 'CANCELLED' && order.delivery_status === 'READY' ? (
                 <button
                   className="ghost-button danger-button"
                   onClick={() => void handleCancel(order.id)}
@@ -101,8 +104,8 @@ export function OrdersPage() {
                 >
                   {t('orders.cancel')}
                 </button>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </article>
         ))}
 

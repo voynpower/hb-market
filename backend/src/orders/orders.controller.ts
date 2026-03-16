@@ -29,6 +29,14 @@ export class OrdersController {
     return this.ordersService.findAll();
   }
 
+  @ApiOperation({ summary: 'Export orders as CSV' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, AdminAccountGuard)
+  @Get('export/csv')
+  async exportCsv() {
+    return this.ordersService.exportOrdersCsv();
+  }
+
   @ApiOperation({ summary: 'List current user orders' })
   @ApiBearerAuth()
   @ApiOkResponse({ description: 'Current user order list returned' })

@@ -112,6 +112,63 @@ export class OrdersService {
     return serializePrisma(orders);
   }
 
+  async exportOrdersCsv() {
+    const orders = await this.prisma.orders.findMany({
+      orderBy: { created_at: 'desc' },
+      include: {
+        users: true,
+        addresses: true,
+        order_items: true,
+      },
+    });
+
+    const headers = [
+      'Order Number',
+      'Date',
+      'Customer Name',
+      'Customer Email',
+      'Recipient',
+      'Phone',
+      'Address',
+      'Total Amount',
+      'Status',
+      'Payment',
+      'Delivery',
+      'Items',
+    ];
+
+    const rows = orders.map((order) => {
+      const itemsDesc = order.order_items
+        .map((item) => `${item.product_name} (x${item.quantity})`)
+        .join('; ');
+
+      const fullAddress = `${order.addresses.address1} ${order.addresses.address2 ?? ''} [${order.addresses.zip_code}]`;
+
+      return [
+        order.order_number,
+        order.created_at.toISOString(),
+        order.users.name,
+        order.users.email,
+        order.addresses.recipient_name,
+        order.addresses.recipient_phone,
+        `"${fullAddress.replace(/"/g, '""')}"`,
+        order.total_amount.toString(),
+        order.order_status,
+        order.payment_status,
+        order.delivery_status,
+        `"${itemsDesc.replace(/"/g, '""')}"`,
+      ];
+    });
+
+    // UTF-8 BOM for Excel compatibility
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.join(',')),
+    ].join('\n');
+
+    return '\ufeff' + csvContent;
+  }
+
   async findMine(userIdValue: string) {
     const userId = parseBigIntInput(userIdValue, 'userId');
     const orders = await this.prisma.orders.findMany({

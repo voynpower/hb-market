@@ -258,6 +258,17 @@ export const api = {
   allOrders(token: string) {
     return requestJson<Order[]>('/orders', { token });
   },
+  exportOrdersCsv(token: string) {
+    return fetch(`${API_BASE_URL}/orders/export/csv`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'text/csv',
+      },
+    }).then((res) => {
+      if (!res.ok) throw new Error('Failed to export CSV');
+      return res.text();
+    });
+  },
   updateOrderStatus(
     token: string,
     orderId: string,

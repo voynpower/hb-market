@@ -253,6 +253,25 @@ export function AdminPage() {
     }
   }
 
+  async function handleExportCsv() {
+    if (!token) return;
+    try {
+      const csvData = await api.exportOrdersCsv(token);
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `orders_export_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setNotice('CSV Export successful');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Export failed');
+    }
+  }
+
   async function handleCreateCategory() {
     if (!token || !newCategoryName.trim()) return;
     try {
@@ -778,6 +797,9 @@ export function AdminPage() {
                 <p className="eyebrow">{t('admin.orderFilters')}</p>
                 <h3>{t('admin.orderSearch')}</h3>
               </div>
+              <button className="ghost-button" onClick={() => void handleExportCsv()} disabled={orders.length === 0}>
+                📥 Export Orders (CSV)
+              </button>
             </div>
             <div className="dual-grid">
               <label className="field-stack">

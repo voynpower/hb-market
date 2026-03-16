@@ -79,6 +79,17 @@ export function AddressesPage() {
     }
   }
 
+  async function handleWithdraw() {
+    if (!token || !window.confirm(t('user.profile.withdrawConfirm'))) return;
+    try {
+      await api.withdraw(token);
+      alert('Your account has been deleted.');
+      logout();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to withdraw');
+    }
+  }
+
   // --- Address Logic ---
   function startEditAddress(address: Address) {
     setEditingAddressId(address.id);
@@ -357,6 +368,21 @@ export function AddressesPage() {
           </div>
         )}
       </div>
+
+      <hr style={{ margin: '64px 0', border: 'none', borderTop: '1px solid rgba(0,0,0,0.05)' }} />
+
+      {/* --- Danger Zone --- */}
+      <article className="danger-zone" style={{ padding: '32px', border: '1px solid #feb2b2', borderRadius: '16px', background: '#fff5f5' }}>
+        <h3 style={{ color: '#c53030', marginBottom: '16px' }}>{t('user.profile.withdraw')}</h3>
+        <p className="muted" style={{ marginBottom: '24px' }}>{t('user.profile.withdrawConfirm')}</p>
+        <button 
+          className="primary-button" 
+          onClick={() => void handleWithdraw()}
+          style={{ background: 'var(--primary-color)', borderColor: 'var(--primary-color)' }}
+        >
+          {t('user.profile.withdraw')}
+        </button>
+      </article>
     </section>
   );
 }

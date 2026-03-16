@@ -120,6 +120,12 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  withdraw(token: string) {
+    return requestJson<{ success: true }>('/users/me', {
+      method: 'DELETE',
+      token,
+    });
+  },
   products(status?: string, categoryId?: string, search?: string, sort?: string) {
     const params = new URLSearchParams();
     if (status) params.append('status', status);

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -22,6 +22,15 @@ export class UsersController {
   @Patch('me')
   updateMe(@CurrentUser() user: AuthUser, @Body() body: UpdateUserProfileDto) {
     return this.usersService.updateProfile(user.sub, body);
+  }
+
+  @ApiOperation({ summary: 'Withdraw account (anonymize)' })
+  @ApiBearerAuth()
+  @ApiOkResponse({ description: 'Account withdrawn' })
+  @UseGuards(JwtAuthGuard)
+  @Delete('me')
+  withdrawMe(@CurrentUser() user: AuthUser) {
+    return this.usersService.withdraw(user.sub);
   }
 
   @ApiOperation({ summary: 'List all users' })

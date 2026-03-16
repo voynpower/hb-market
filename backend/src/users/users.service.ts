@@ -65,6 +65,44 @@ export class UsersService {
     return serializePrisma(updated);
   }
 
+  async withdraw(id: string) {
+    const userId = parseBigIntId(id, 'userId');
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User ${id} not found`);
+    }
+
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const anonymizedEmail = `deleted_${userId.toString()}_${randomSuffix}@hb-market.com`;
+
+    // 1. Update user to anonymized state
+    await this.prisma.users.update({
+      where: { id: userId },
+      data: {
+        email: anonymizedEmail,
+        name: 'Withdrawal User',
+        phone: null,
+        password_hash: 'ANONYMIZED_' + randomSuffix,
+        status: 'DELETED',
+      },
+    });
+
+    // 2. Remove all saved addresses (Optional but recommended for privacy)
+    await this.prisma.addresses.deleteMany({
+      where: { user_id: userId },
+    });
+
+    // 3. Clear current cart
+    await this.prisma.carts.deleteMany({
+      where: { user_id: userId },
+    });
+
+    return { success: true };
+  }
+
   async findAll() {
     const users = await this.prisma.users.findMany({
       orderBy: { created_at: 'desc' },

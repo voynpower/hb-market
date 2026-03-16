@@ -187,6 +187,8 @@ const translations: Record<Lang, Dict> = {
     'user.profile.currentPassword': 'Current Password',
     'user.profile.newPassword': 'New Password',
     'user.profile.passwordRequired': 'Required for changes',
+    'user.profile.withdraw': 'Delete Account',
+    'user.profile.withdrawConfirm': 'Are you sure you want to delete your account? This will anonymize your data but keep order history for legal reasons. This action cannot be undone.',
   },
   ko: {
     'brand.subtitle.storefront': '스토어프론트',
@@ -354,6 +356,8 @@ const translations: Record<Lang, Dict> = {
     'user.profile.currentPassword': '현재 비밀번호',
     'user.profile.newPassword': '새 비밀번호',
     'user.profile.passwordRequired': '변경 시 필수 입력',
+    'user.profile.withdraw': '회원 탈퇴',
+    'user.profile.withdrawConfirm': '정말로 계정을 삭제하시겠습니까? 개인정보는 즉시 파기되지만, 법적 보관 의무가 있는 주문 내역은 익명화된 상태로 유지됩니다. 이 작업은 취소할 수 없습니다.',
   },
   uz: {
     'brand.subtitle.storefront': 'Do‘kon',
@@ -521,6 +525,8 @@ const translations: Record<Lang, Dict> = {
     'user.profile.currentPassword': 'Joriy parol',
     'user.profile.newPassword': 'Yangi parol',
     'user.profile.passwordRequired': 'O‘zgartirish uchun talab qilinadi',
+    'user.profile.withdraw': 'Hisobni o‘chirish',
+    'user.profile.withdrawConfirm': 'Hisobingizni o‘chirishga ishonchingiz komilmi? Shaxsiy ma’lumotlaringiz o‘chiriladi, ammo qonuniy sabablarga ko‘ra buyurtmalar tarixi saqlanib qoladi. Bu amalni bekor qilib bo‘lmaydi.',
   },
   ru: {
     'brand.subtitle.storefront': 'Магазин',
@@ -688,6 +694,8 @@ const translations: Record<Lang, Dict> = {
     'user.profile.currentPassword': 'Текущий пароль',
     'user.profile.newPassword': 'Новый пароль',
     'user.profile.passwordRequired': 'Обязательно для изменений',
+    'user.profile.withdraw': 'Удалить аккаунт',
+    'user.profile.withdrawConfirm': 'Вы уверены, что хотите удалить свой аккаунт? Ваши личные данные будут удалены, но история заказов сохранится в анонимном виде для соблюдения законодательства. Это действие нельзя отменить.',
   },
 };
 

@@ -1,197 +1,150 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { api, resolveAssetUrl } from '../lib/api';
 import { formatCurrency } from '../lib/format';
 import { useI18n } from '../i18n';
+import { useWishlist } from '../context/WishlistContext';
 import type { Product } from '../types';
 
 export function ProductDetailPage() {
-  const { productId } = useParams();
-  const { token, isAuthenticated, user } = useAuth();
+  const { id } = useParams<{ id: string }>();
+  const { token, isAuthenticated } = useAuth();
   const { t } = useI18n();
+  const { isInWishlist, toggleWishlist } = useWishlist();
   const navigate = useNavigate();
+
   const [product, setProduct] = useState<Product | null>(null);
-  const [selectedOptionId, setSelectedOptionId] = useState('');
+  const [selectedOptionId, setSelectedOptionId] = useState<string>('');
+  const [quantity, setQuantity] = useState(1);
+  
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!productId) {
-      return;
-    }
-
-    void api
-      .product(productId)
-      .then((result) => {
-        setProduct(result);
-        setSelectedOptionId(result.product_options[0]?.id ?? '');
+    if (!id) return;
+    
+    setIsLoading(true);
+    api.product(id)
+      .then((p) => {
+        setProduct(p);
+        if (p.product_options.length > 0) {
+          setSelectedOptionId(p.product_options[0].id);
+        }
       })
-      .catch((requestError: Error) => {
-        setError(requestError.message);
+      .catch((e) => {
+        setError(e.message);
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
-  }, [productId]);
+  }, [id]);
 
-  const selectedOption = useMemo(() => {
-    if (!product) {
-      return null;
-    }
+  if (isLoading) return <div className="page">Loading...</div>;
+  if (error && !product) return <div className="page error">Error: {error}</div>;
+  if (!product) return <div className="page">Product not found</div>;
 
-    return (
-      product.product_options.find((option) => option.id === selectedOptionId) ??
-      product.product_options[0] ??
-      null
-    );
-  }, [product, selectedOptionId]);
-
-  if (!productId) {
-    return <Navigate replace to="/" />;
-  }
-
-  if (user?.subject_type === 'ADMIN') {
-    return <Navigate replace to="/admin" />;
-  }
+  const selectedOption = product.product_options.find(o => o.id === selectedOptionId);
+  const price = Number(product.base_price) + Number(selectedOption?.extra_price || 0);
 
   async function handleAddToCart() {
-    if (!product) {
-      return;
-    }
-
-    if (!isAuthenticated || !token) {
+    if (!isAuthenticated || !token || !id) {
       navigate('/login');
       return;
     }
-
     try {
-      setError(null);
       setFeedback(null);
       await api.addCartItem(token, {
-        product_id: product.id,
-        ...(selectedOption ? { product_option_id: selectedOption.id } : {}),
-        quantity: 1,
+        product_id: id,
+        product_option_id: selectedOptionId || undefined,
+        quantity
       });
-      setFeedback(`${product.name} added to cart`);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to add item');
+      setFeedback('✓ Item added to cart');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to add to cart');
     }
   }
 
   return (
-    <section className="page">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">{t('detail.eyebrow')}</p>
-          <h2>{t('detail.title')}</h2>
-        </div>
-        <Link className="ghost-button" to="/">
-          {t('detail.back')}
-        </Link>
+    <section className="page product-detail">
+      <header className="page-header" style={{ background: 'transparent', border: 'none', boxShadow: 'none', paddingLeft: 0, marginBottom: '24px' }}>
+        <Link to="/" className="ghost-button" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>← {t('nav.shop')}</Link>
       </header>
 
-      {feedback ? <p className="callout success">{feedback}</p> : null}
-      {error ? <p className="callout error">{error}</p> : null}
-
-      {product ? (
-        <div className="detail-layout">
-          <article className="product-card detail-card">
-            {product.product_images.length ? (
-              <div className="product-hero">
-                <img
-                  src={resolveAssetUrl(product.product_images[0].url)}
-                  alt={product.product_images[0].alt || product.name}
-                  loading="lazy"
+      <div className="product-layout dual-grid">
+        <div className="product-visuals">
+          {product.product_images.length > 0 ? (
+            product.product_images.map(img => (
+              <div key={img.id} className="product-thumb" style={{ height: 'auto', marginBottom: '16px' }}>
+                <img 
+                  src={resolveAssetUrl(img.url)} 
+                  alt={img.alt || product.name} 
+                  style={{ width: '100%', display: 'block' }}
                 />
-                <span className="thumb-pill">
-                  {product.product_images[0].alt || t('common.primaryImage')}
-                </span>
               </div>
-            ) : (
-              <div className="product-hero">
-                <img
-                  src={
-                    'data:image/svg+xml;utf8,' +
-                    encodeURIComponent(
-                      `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="%23e8ded0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23746453" font-family="Arial" font-size="32">No image</text></svg>`,
-                    )
-                  }
-                  alt={t('common.noImage')}
-                  loading="lazy"
-                />
-                <span className="thumb-pill">{t('common.noImage')}</span>
-              </div>
-            )}
-            <div className="product-head">
-              <div>
-                <p className="product-kicker">{product.status}</p>
-                <h3>{product.name}</h3>
-              </div>
-              <strong>{formatCurrency(product.base_price)}</strong>
+            ))
+          ) : (
+            <div className="product-thumb" style={{ height: '300px', display: 'grid', placeItems: 'center' }}>
+              <p className="muted">No images available</p>
             </div>
-              <p className="product-copy">
-                {product.description || t('detail.noDescription')}
-              </p>
-              <div className="chip-row">
-                <span className="chip">Created {new Date(product.created_at).toLocaleDateString()}</span>
-                <span className="chip">Variants {product.product_options.length}</span>
-            </div>
-          </article>
+          )}
+        </div>
 
-          <aside className="summary-card">
-            <p className="eyebrow">{t('detail.purchase')}</p>
-            <h3>
-              {formatCurrency(
-                Number(product.base_price) + Number(selectedOption?.extra_price ?? 0),
-              )}
-            </h3>
+        <div className="product-info stack" style={{ gap: '24px' }}>
+          <div>
+            <p className="product-kicker">{product.categories?.name || 'General'}</p>
+            <h2 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-1px' }}>{product.name}</h2>
+          </div>
 
-            {product.product_options.length ? (
-              <label className="field-stack">
-                <span className="field-label">{t('detail.option')}</span>
-                <select
-                  className="text-input"
+          <strong style={{ fontSize: '2rem', color: 'var(--primary-color)' }}>{formatCurrency(price)}</strong>
+          
+          <p className="product-copy" style={{ fontSize: '1.1rem', lineHeight: 1.7 }}>{product.description}</p>
+
+          <div className="purchase-card form-card" style={{ padding: '24px' }}>
+            {product.product_options.length > 0 && (
+              <label className="field-stack" style={{ marginBottom: '20px' }}>
+                <span className="field-label">{t('shop.option')}</span>
+                <select 
+                  className="text-input" 
                   value={selectedOptionId}
-                  onChange={(event) => setSelectedOptionId(event.target.value)}
+                  onChange={e => setSelectedOptionId(e.target.value)}
                 >
-                  {product.product_options.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.option_name}: {option.option_value} · stock {option.stock_qty}
-                    </option>
+                  {product.product_options.map(o => (
+                    <option key={o.id} value={o.id}>{o.option_name}: {o.option_value}</option>
                   ))}
                 </select>
               </label>
-            ) : (
-              <p className="muted">{t('detail.noOptions')}</p>
             )}
 
-            {selectedOption ? (
-              <div className="stack compact-stack">
-                <div className="summary-strip">
-                  <span>{t('detail.variant')}</span>
-                  <strong>
-                    {selectedOption.option_name}: {selectedOption.option_value}
-                  </strong>
-                </div>
-                <div className="summary-strip">
-                  <span>{t('detail.stock')}</span>
-                  <strong>{selectedOption.stock_qty}</strong>
-                </div>
-                <div className="summary-strip">
-                  <span>{t('detail.sku')}</span>
-                  <strong>{selectedOption.sku || '-'}</strong>
-                </div>
-              </div>
-            ) : null}
+            <label className="field-stack" style={{ marginBottom: '24px' }}>
+              <span className="field-label">{t('shop.quantity')}</span>
+              <input 
+                type="number" 
+                className="text-input" 
+                min={1} 
+                value={quantity} 
+                onChange={e => setQuantity(Number(e.target.value))} 
+              />
+            </label>
 
             <button className="primary-button wide-button" onClick={() => void handleAddToCart()}>
-              {t('detail.addToCart')}
+              {t('shop.addToCart')}
             </button>
-          </aside>
+
+            <button 
+              className="ghost-button wide-button" 
+              style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              onClick={() => id && toggleWishlist(id)}
+            >
+              {id && isInWishlist(id) ? '❤️' : '🤍'} {t('nav.wishlist') || 'Wishlist'}
+            </button>
+            
+            {feedback && <p className="callout success" style={{ marginTop: '16px' }}>{feedback}</p>}
+            {error && <p className="callout error" style={{ marginTop: '16px' }}>{error}</p>}
+          </div>
         </div>
-      ) : (
-        <div className="empty-card">
-          <p>Loading product detail...</p>
-        </div>
-      )}
+      </div>
     </section>
   );
 }

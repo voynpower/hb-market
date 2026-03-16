@@ -1,219 +1,205 @@
-import { startTransition, useDeferredValue, useEffect, useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api, resolveAssetUrl } from '../lib/api';
 import { formatCurrency } from '../lib/format';
 import { useI18n } from '../i18n';
+import { useWishlist } from '../context/WishlistContext';
 import type { Category, Product } from '../types';
 
 export function ShopPage() {
-  const { token, isAuthenticated, user } = useAuth();
   const { t } = useI18n();
-  const navigate = useNavigate();
+  const { isInWishlist, toggleWishlist } = useWishlist();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [sortOrder, setSortOrder] = useState('latest');
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
-  const [query, setQuery] = useState('');
-  const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const deferredQuery = useDeferredValue(query);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    void api.categories().then(setCategories).catch(console.error);
-  }, []);
+  // Filter & Sort State from URL
+  const selectedCategory = searchParams.get('category_id') || '';
+  const searchQuery = searchParams.get('search') || '';
+  const sortOption = searchParams.get('sort') || 'latest';
 
-  useEffect(() => {
-    void api
-      .products('ON_SALE', selectedCategoryId || undefined, deferredQuery || undefined, sortOrder)
-      .then((result) => {
-        startTransition(() => setProducts(result));
-      })
-      .catch((requestError: Error) => {
-        setError(requestError.message);
-      });
-  }, [selectedCategoryId, deferredQuery, sortOrder]);
-
-  if (user?.subject_type === 'ADMIN') {
-    return <Navigate replace to="/admin" />;
-  }
-
-  async function handleAddToCart(product: Product) {
-    if (!isAuthenticated || !token) {
-      navigate('/login');
-      return;
-    }
-
-    const selectedOptionId = selectedOptions[product.id];
-    const payload = {
-      product_id: product.id,
-      ...(selectedOptionId ? { product_option_id: selectedOptionId } : {}),
-      quantity: 1,
-    };
-
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
     try {
-      setFeedback(null);
-      await api.addCartItem(token, payload);
-      setFeedback(`${product.name} added to cart`);
+      const [productsResult, categoriesResult] = await Promise.all([
+        api.products('ON_SALE', selectedCategory, searchQuery, sortOption),
+        api.categories(),
+      ]);
+      setProducts(productsResult);
+      setCategories(categoriesResult);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to add item');
+      setError(requestError instanceof Error ? requestError.message : 'Unable to load products');
+    } finally {
+      setIsLoading(false);
     }
-  }
+  }, [selectedCategory, searchQuery, sortOption]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const query = formData.get('search') as string;
+    
+    setSearchParams(prev => {
+      if (query) prev.set('search', query);
+      else prev.delete('search');
+      return prev;
+    });
+  };
+
+  const handleCategoryChange = (categoryId: string) => {
+    setSearchParams(prev => {
+      if (categoryId) prev.set('category_id', categoryId);
+      else prev.delete('category_id');
+      return prev;
+    });
+  };
+
+  const handleSortChange = (sort: string) => {
+    setSearchParams(prev => {
+      prev.set('sort', sort);
+      return prev;
+    });
+  };
 
   return (
     <section className="page shop-page">
       <header className="page-header">
         <div className="page-title-block">
-          <p className="eyebrow">{t('shop.eyebrow')}</p>
-          <h2>{t('shop.title')}</h2>
-          <p className="muted">{t('shop.subtitle')}</p>
-          <div className="hero-stats">
-            <span className="meta-pill">{t('shop.total', { count: products.length })}</span>
-          </div>
-        </div>
-        <div className="search-panel dual-grid">
-          <label className="field-stack">
-            <span className="field-label">{t('shop.find')}</span>
-            <input
-              id="product-search"
-              className="text-input"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t('shop.search.placeholder')}
-            />
-          </label>
-          <label className="field-stack">
-            <span className="field-label">{t('shop.sortLabel') || 'Sort By'}</span>
-            <select 
-              className="text-input" 
-              value={sortOrder} 
-              onChange={e => setSortOrder(e.target.value)}
-            >
-              <option value="latest">Latest</option>
-              <option value="oldest">Oldest</option>
-              <option value="price_asc">Price: Low to High</option>
-              <option value="price_desc">Price: High to Low</option>
-            </select>
-          </label>
+          <p className="product-kicker">{t('shop.eyebrow')}</p>
+          <h2 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-1px' }}>{t('shop.title')}</h2>
         </div>
       </header>
 
-      <div className="line-card" style={{ padding: '16px', marginBottom: '24px' }}>
-        <div className="chip-row">
-          <button 
-            className={`pill ${!selectedCategoryId ? '' : 'outline'}`}
-            onClick={() => setSelectedCategoryId(null)}
-          >
-            {t('common.all') || 'All'}
-          </button>
-          {categories.map(cat => (
-            <button 
-              key={cat.id} 
-              className={`pill ${selectedCategoryId === cat.id ? '' : 'outline'}`}
-              onClick={() => setSelectedCategoryId(cat.id)}
+      <aside className="filters-bar" style={{ marginBottom: '40px', background: 'white', padding: '24px', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
+        <div className="filters-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', alignItems: 'end' }}>
+          
+          <form className="search-box" onSubmit={handleSearch}>
+            <label className="field-label" style={{ marginBottom: '8px', display: 'block', fontWeight: 700 }}>{t('shop.find')}</label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input 
+                name="search"
+                className="text-input" 
+                defaultValue={searchQuery}
+                placeholder={t('shop.search.placeholder')} 
+              />
+              <button className="primary-button" style={{ padding: '0 20px' }}>Go</button>
+            </div>
+          </form>
+
+          <div className="filter-group">
+            <label className="field-label" style={{ marginBottom: '8px', display: 'block', fontWeight: 700 }}>{t('nav.categories') || 'Category'}</label>
+            <select 
+              className="text-input" 
+              value={selectedCategory} 
+              onChange={e => handleCategoryChange(e.target.value)}
             >
-              {cat.name}
-            </button>
-          ))}
+              <option value="">{t('admin.orderStatus.ALL') || 'All Categories'}</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="field-label" style={{ marginBottom: '8px', display: 'block', fontWeight: 700 }}>Sort By</label>
+            <select 
+              className="text-input" 
+              value={sortOption} 
+              onChange={e => handleSortChange(e.target.value)}
+            >
+              <option value="latest">Latest Arrivals</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+              <option value="oldest">Oldest First</option>
+            </select>
+          </div>
         </div>
-      </div>
+      </aside>
 
-      {feedback ? <p className="callout success">{feedback}</p> : null}
-      {error ? <p className="callout error">{error}</p> : null}
+      {isLoading ? (
+        <div className="loading-state" style={{ padding: '80px', textAlign: 'center' }}>
+          <p className="muted">Loading amazing products...</p>
+        </div>
+      ) : error ? (
+        <div className="error-state callout error">{error}</div>
+      ) : (
+        <>
+          <div className="shop-meta" style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <p className="muted" style={{ fontWeight: 600 }}>{t('shop.visible', { count: products.length })}</p>
+          </div>
 
-      <div className="product-grid">
-        {products.map((product) => {
-          const selectedOption =
-            product.product_options.find((option) => option.id === selectedOptions[product.id]) ??
-            product.product_options[0] ??
-            null;
-          const primaryImage =
-            product.product_images.find((img) => img.is_primary) ||
-            product.product_images[0] ||
-            null;
-          const fallback =
-            'data:image/svg+xml;utf8,' +
-            encodeURIComponent(
-              `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect width="600" height="400" fill="%23e8ded0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23746453" font-family="Arial" font-size="28">No image</text></svg>`,
-            );
+          <div className="products-grid">
+            {products.map((product) => {
+              const primaryImage = product.product_images.find((img) => img.is_primary) ?? product.product_images[0];
+              const isFavorite = isInWishlist(product.id);
 
-          return (
-            <article className="product-card" key={product.id}>
-              {primaryImage ? (
-                <div className="product-thumb">
-                  <img
-                    src={resolveAssetUrl(primaryImage.url)}
-                    alt={primaryImage.alt || product.name}
-                    loading="lazy"
-                  />
-                </div>
-              ) : (
-                <div className="product-thumb">
-                  <img src={fallback} alt={t('common.noImage')} loading="lazy" />
-                </div>
-              )}
-              <div className="product-head">
-                <div>
-                  <p className="product-kicker">
-                    {product.status} {product.categories ? `· ${product.categories.name}` : ''}
-                  </p>
-                  <h3>{product.name}</h3>
-                </div>
-                <strong>{formatCurrency(product.base_price)}</strong>
-              </div>
-              <p className="product-copy">
-                {product.description || t('shop.fallbackDesc')}
-              </p>
-              {product.product_options.length ? (
-                <label className="field-stack">
-                  <span className="field-label">{t('shop.option')}</span>
-                  <select
-                    className="text-input"
-                    value={selectedOptions[product.id] ?? product.product_options[0].id}
-                    onChange={(event) =>
-                      setSelectedOptions((current) => ({
-                        ...current,
-                        [product.id]: event.target.value,
-                      }))
-                    }
-                  >
-                    {product.product_options.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.option_name}: {option.option_value} ·{' '}
-                        {formatCurrency(
-                          Number(product.base_price) + Number(option.extra_price || 0),
-                        )}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : (
-                <p className="muted">{t('shop.noOptions')}</p>
-              )}
-              <div className="product-footer">
-                <span className="pill">
-                  {t('shop.stock', {
-                    count: selectedOption
-                      ? selectedOption.stock_qty
-                      : product.product_options.length
-                        ? product.product_options[0].stock_qty
-                        : '-',
-                  })}
-                </span>
-                <div className="product-actions">
-                  <Link className="ghost-button" to={`/products/${product.id}`}>
-                    {t('shop.details')}
-                  </Link>
-                  <button className="primary-button" onClick={() => void handleAddToCart(product)}>
-                    {t('shop.addToCart')}
-                  </button>
-                </div>
-              </div>
-            </article>
-          );
-        })}
-      </div>
+              return (
+                <article key={product.id} className="product-card">
+                  <div className="product-card-visual">
+                    <Link to={`/products/${product.id}`}>
+                      {primaryImage ? (
+                        <img src={resolveAssetUrl(primaryImage.url)} alt={primaryImage.alt || product.name} />
+                      ) : (
+                        <div className="no-image-placeholder">{t('shop.noImage')}</div>
+                      )}
+                    </Link>
+                    <button 
+                      className={`wishlist-toggle ${isFavorite ? 'active' : ''}`} 
+                      onClick={() => toggleWishlist(product.id)}
+                      style={{ 
+                        position: 'absolute', 
+                        top: '12px', 
+                        right: '12px', 
+                        background: 'white', 
+                        border: 'none', 
+                        borderRadius: '50%', 
+                        width: '36px', 
+                        height: '36px', 
+                        cursor: 'pointer', 
+                        display: 'grid', 
+                        placeItems: 'center', 
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        color: isFavorite ? 'var(--primary-color)' : '#ccc',
+                        transition: 'all 0.2s ease',
+                        fontSize: '1.2rem'
+                      }}
+                    >
+                      {isFavorite ? '❤️' : '🤍'}
+                    </button>
+                  </div>
+                  <div className="product-card-info">
+                    <p className="eyebrow">{product.categories?.name || 'General'}</p>
+                    <Link to={`/products/${product.id}`}>
+                      <h3 className="product-title">{product.name}</h3>
+                    </Link>
+                    <p className="product-desc">{product.description || t('shop.fallbackDesc')}</p>
+                    <strong className="product-price">{formatCurrency(product.base_price)}</strong>
+                    <div style={{ marginTop: '16px' }}>
+                      <Link to={`/products/${product.id}`} className="ghost-button wide-button" style={{ textAlign: 'center' }}>
+                        {t('shop.details')}
+                      </Link>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          {!products.length && (
+            <div className="empty-card" style={{ padding: '80px', textAlign: 'center' }}>
+              <h3>No products found</h3>
+              <p className="muted">Try adjusting your filters or search query.</p>
+            </div>
+          )}
+        </>
+      )}
     </section>
   );
 }

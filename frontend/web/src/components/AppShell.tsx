@@ -2,13 +2,20 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../lib/api';
 import { useI18n } from '../i18n';
+import { useWishlist } from '../context/WishlistContext';
 
 function linkClassName({ isActive }: { isActive: boolean }) {
   return `shell-link${isActive ? ' shell-link-active' : ''}`;
 }
 
-function NavIcon({ name }: { name: 'shop' | 'cart' | 'orders' | 'addresses' | 'dashboard' | 'login' }) {
+function NavIcon({ name }: { name: 'shop' | 'cart' | 'orders' | 'addresses' | 'dashboard' | 'login' | 'wishlist' }) {
   switch (name) {
+    case 'wishlist':
+      return (
+        <svg className="shell-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6">
+          <path d="M20.8 4.6a5.5 5.5 0 0 0-7.7 0l-1.1 1-1.1-1a5.5 5.5 0 0 0-7.7 7.8l1.1 1 7.7 7.8 7.7-7.8 1.1-1a5.5 5.5 0 0 0 0-7.8Z" />
+        </svg>
+      );
     case 'shop':
       return (
         <svg className="shell-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -130,6 +137,7 @@ function NavIcon({ name }: { name: 'shop' | 'cart' | 'orders' | 'addresses' | 'd
 export function AppShell() {
   const { user, logout, isAuthenticated } = useAuth();
   const { t, lang, setLang } = useI18n();
+  const { wishlist } = useWishlist();
 
   return (
     <div className="shell">
@@ -185,6 +193,13 @@ export function AppShell() {
                     <span className="shell-link-content">
                       <NavIcon name="cart" />
                       <span className="shell-link-label">{t('nav.cart')}</span>
+                    </span>
+                  </NavLink>
+                  <NavLink className={linkClassName} to="/wishlist">
+                    <span className="shell-link-content">
+                      <NavIcon name="wishlist" />
+                      <span className="shell-link-label">{t('nav.wishlist') || 'Wishlist'}</span>
+                      {wishlist.length > 0 && <span className="badge" style={{ marginLeft: 'auto', background: 'var(--primary-color)', color: 'white', borderRadius: '50%', minWidth: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 800 }}>{wishlist.length}</span>}
                     </span>
                   </NavLink>
                   <NavLink className={linkClassName} to="/orders">

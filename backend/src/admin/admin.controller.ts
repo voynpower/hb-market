@@ -33,6 +33,6 @@ export class AdminController {
   @ApiOkResponse({ description: 'Admin profile updated' })
   @Patch('profile')
   updateProfile(@CurrentUser() user: any, @Body() body: UpdateAdminProfileDto) {
-    return this.adminUsersService.updateProfile(user.id, body);
+    return this.adminUsersService.updateProfile(user.sub, body);
   }
 }

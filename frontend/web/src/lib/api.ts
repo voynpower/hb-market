@@ -315,7 +315,7 @@ export const api = {
     token: string,
     payload: { name?: string; email?: string; current_password?: string; new_password?: string },
   ) {
-    return requestJson<UserSummary>('/admin/profile', {
+    return requestJson<UserSummary>(`/admin/profile`, {
       method: 'PATCH',
       token,
       body: JSON.stringify(payload),

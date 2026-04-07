@@ -5,19 +5,29 @@ import { Request } from 'express';
 
 @Injectable()
 export class PaymentsService {
-  private stripe: Stripe;
+  private stripe: Stripe | null = null;
 
   constructor(private readonly prisma: PrismaService) {
     const secretKey = process.env.STRIPE_SECRET_KEY;
-    if (!secretKey) {
-      console.warn('STRIPE_SECRET_KEY is not set. Payment features will fail.');
+    if (secretKey && secretKey.trim() !== '') {
+      try {
+        this.stripe = new Stripe(secretKey, {
+          apiVersion: '2025-02-24-preview' as any,
+        });
+        console.log('Stripe initialized successfully.');
+      } catch (e) {
+        console.error('Failed to initialize Stripe:', e.message);
+      }
+    } else {
+      console.error('CRITICAL: STRIPE_SECRET_KEY is not set. Payment features will be disabled.');
     }
-    this.stripe = new Stripe(secretKey || '', {
-      apiVersion: '2025-02-24-preview' as any,
-    });
   }
 
   async createCheckoutSession(orderIdValue: string, userIdValue: string) {
+    if (!this.stripe) {
+      throw new BadRequestException('Payment system is currently unavailable (missing API key)');
+    }
+
     const orderId = BigInt(orderIdValue);
     
     const order = await this.prisma.orders.findUnique({
@@ -40,7 +50,7 @@ export class PaymentsService {
       payment_method_types: ['card'],
       line_items: order.order_items.map((item) => ({
         price_data: {
-          currency: 'krw', // Adjusted to KRW or your preferred currency
+          currency: 'krw',
           product_data: {
             name: item.product_name,
           },
@@ -61,8 +71,18 @@ export class PaymentsService {
   }
 
   async handleWebhook(req: RawBodyRequest<Request>) {
+    if (!this.stripe) {
+      console.error('Webhook received but Stripe is not initialized.');
+      return { received: false };
+    }
+
     const sig = req.headers['stripe-signature'] as string;
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    if (!sig || !webhookSecret) {
+      console.error('Webhook missing signature or secret.');
+      throw new BadRequestException('Invalid webhook signature');
+    }
 
     let event: Stripe.Event;
 
@@ -70,7 +90,7 @@ export class PaymentsService {
       event = this.stripe.webhooks.constructEvent(
         req.rawBody!,
         sig,
-        webhookSecret || '',
+        webhookSecret,
       );
     } catch (err) {
       console.error(`Webhook Error: ${err.message}`);
@@ -91,7 +111,6 @@ export class PaymentsService {
 
   private async fulfillOrder(orderId: bigint, sessionId: string, amount: number) {
     await this.prisma.$transaction(async (tx) => {
-      // 1. Update Order Status
       const order = await tx.orders.update({
         where: { id: orderId },
         data: {
@@ -103,7 +122,6 @@ export class PaymentsService {
         },
       });
 
-      // 2. Create Payment Record
       await tx.payments.upsert({
         where: { order_id: orderId },
         update: {
@@ -122,7 +140,6 @@ export class PaymentsService {
         },
       });
 
-      // 3. Deduct Inventory (Important!)
       for (const item of order.order_items) {
         if (item.product_option_id) {
           await tx.product_options.update({

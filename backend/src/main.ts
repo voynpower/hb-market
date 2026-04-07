@@ -11,27 +11,12 @@ async function bootstrap() {
     rawBody: true,
   });
   
-  // Extremely permissive CORS for debugging and production stability
+  // Standard and robust CORS configuration
   app.enableCors({
-    origin: (origin, callback) => {
-      // Allow all origins in development and production for now to fix the blocking issue
-      callback(null, true);
-    },
+    origin: true, // Auto-reflect the requester's origin
     credentials: true,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: [
-      'Origin',
-      'X-Requested-With',
-      'Content-Type',
-      'Accept',
-      'Authorization',
-      'Access-Control-Allow-Origin',
-      'Access-Control-Allow-Headers',
-      'Access-Control-Allow-Methods',
-      'Access-Control-Allow-Credentials',
-    ],
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
 
   // Serve uploaded assets
@@ -55,11 +40,8 @@ async function bootstrap() {
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, swaggerDocument);
 
-  // Railway injects a dynamic PORT environment variable.
-  // It is crucial to listen on this port and bind to 0.0.0.0
   const port = process.env.PORT || 3000;
   console.log(`Starting server on port ${port}...`);
-  console.log(`Database connection attempt using configured DATABASE_URL...`);
   
   // Seed initial admin user if not exists
   try {

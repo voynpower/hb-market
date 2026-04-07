@@ -87,6 +87,14 @@ export function CartPage() {
         address_id: selectedAddressId,
         payment_method: paymentMethod,
       });
+      
+      // If payment method is CARD, redirect to Stripe
+      if (paymentMethod === 'CARD') {
+        const { url } = await api.createPaymentSession(token, order.id);
+        window.location.href = url;
+        return;
+      }
+
       setNotice(`Order ${order.order_number} created`);
       const nextCart = await api.getCart(token);
       setCart(nextCart);

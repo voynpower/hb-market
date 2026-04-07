@@ -285,6 +285,13 @@ export const api = {
       return res.text();
     });
   },
+  createPaymentSession(token: string, orderId: string) {
+    return requestJson<{ url: string }>('/payments/create-session', {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ orderId }),
+    });
+  },
   updateOrderStatus(
     token: string,
     orderId: string,

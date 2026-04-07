@@ -8,11 +8,28 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  
+  // Extremely permissive CORS for debugging and production stability
   app.enableCors({
-    origin: true, // This allows all origins
+    origin: (origin, callback) => {
+      // Allow all origins in development and production for now to fix the blocking issue
+      callback(null, true);
+    },
     credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: [
+      'Origin',
+      'X-Requested-With',
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'Access-Control-Allow-Origin',
+      'Access-Control-Allow-Headers',
+      'Access-Control-Allow-Methods',
+      'Access-Control-Allow-Credentials',
+    ],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
   // Serve uploaded assets
